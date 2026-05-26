@@ -833,25 +833,43 @@ function handleFirestoreData(doc, uid, localData){
   if(doc.exists){
     var d=doc.data();
     if(d.classes){
-      // Compare: use Firestore data if it has more classes or newer timestamp
       var fsClassCount=Object.keys(d.classes).length;
       var localClassCount=localData?Object.keys(localData.classes).length:0;
       console.log('[LOAD] Firestore classes: '+fsClassCount+', localStorage classes: '+localClassCount);
       // Log what Firestore has
       for(var fcid in d.classes){if(d.classes.hasOwnProperty(fcid)){console.log('[LOAD] FS class: '+fcid+' = '+(d.classes[fcid].name||'?'));}}
       if(localData){for(var lcid in localData.classes){if(localData.classes.hasOwnProperty(lcid)){console.log('[LOAD] LS class: '+lcid+' = '+(localData.classes[lcid].name||'?'));}}}
-      // If Firestore has same or more classes, use Firestore
-      // If localStorage has MORE classes, localStorage is more recent (user just added one)
-      if(localClassCount>fsClassCount){
-        console.log('localStorage has more classes ('+localClassCount+') than Firestore ('+fsClassCount+'), using localStorage');
-        classes=localData.classes;
-        currentClassId=localData.currentClassId||'';
-        if(localData.schoolName) schoolName=localData.schoolName;
-        if(localData.currentDate){try{currentDate=new Date(localData.currentDate+'T12:00:00');}catch(e){}}
-      }else{
-        classes=d.classes;
-        currentClassId=d.currentClassId||'';
-        if(d.schoolName) schoolName=d.schoolName;
+      // MERGE: unisci classi da Firestore e localStorage, la versione più recente vince
+      // Partiamo da Firestore come base, poi aggiungiamo classi che esistono solo in localStorage
+      classes=JSON.parse(JSON.stringify(d.classes));
+      currentClassId=d.currentClassId||'';
+      if(d.schoolName) schoolName=d.schoolName;
+      // Aggiungi classi da localStorage che NON esistono in Firestore
+      if(localData&&localData.classes){
+        for(var mk in localData.classes){
+          if(localData.classes.hasOwnProperty(mk)&&!classes.hasOwnProperty(mk)){
+            console.log('[MERGE] Adding local-only class: '+mk+' = '+(localData.classes[mk].name||'?'));
+            classes[mk]=localData.classes[mk];
+          }
+        }
+        // Se localStorage ha una classe con più dati (più bambini o più messaggi), usa quella
+        for(var uk in localData.classes){
+          if(localData.classes.hasOwnProperty(uk)&&classes.hasOwnProperty(uk)){
+            var lsChildren=(localData.classes[uk].children||[]).length;
+            var fsChildren=(classes[uk].children||[]).length;
+            var lsMsgs=(localData.classes[uk].messages||[]).length;
+            var fsMsgs=(classes[uk].messages||[]).length;
+            // Se localStorage ha più contenuti, preferisci quello
+            if(lsChildren>fsChildren||lsMsgs>fsMsgs){
+              console.log('[MERGE] Local class has more data: '+uk+' (LS:'+lsChildren+'children/'+lsMsgs+'msgs vs FS:'+fsChildren+'/'+fsMsgs+')');
+              classes[uk]=localData.classes[uk];
+            }
+          }
+        }
+        // Se il currentClassId non esiste nelle classi merge, usa quello di localStorage
+        if(!classes[currentClassId]&&localData.currentClassId&&classes[localData.currentClassId]){
+          currentClassId=localData.currentClassId;
+        }
       }
       useFirestoreData=true;
     }else{
@@ -944,8 +962,9 @@ function initFirebase(){
         loadFromFirestore(u.uid);
       }else{
         firestoreLoadDone=false;
+        // NON pulire localStorage per uid - serve come backup quando si rientra!
+        // Rimuovi solo il vecchio key generico
         try{localStorage.removeItem('rp_data');}catch(e){}
-        try{if(previousUser){localStorage.removeItem('rp_data_'+previousUser.uid);}}catch(e2){}
         resetAllData();
         syncStatus='idle';render();
       }
@@ -961,20 +980,28 @@ function handleLogin(){
     if(confirm('Vuoi disconnettere l\'account "'+(currentUser.displayName||currentUser.email)+'"?\n\nI dati rimarranno salvati nel tuo account Google.')){
       var uid=currentUser.uid;
       saveCurrentClassData();
-      // Salva su Firestore senza aspettare (fire and forget)
-      try{
-        if(db&&uid){
-          var data={classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
-          db.collection('users').doc(uid).set(data).catch(function(){});
-        }
-      }catch(e){}
-      // Pulisci localStorage
-      try{localStorage.removeItem('rp_data_'+uid);}catch(e){}
-      try{localStorage.removeItem('rp_data');}catch(e){}
-      // Effettua il logout Firebase subito, senza aspettare nulla
-      try{auth.signOut();}catch(e){}
-      // Forza ricaricamento pagina dopo mezzo secondo
-      setTimeout(function(){window.location.reload();},500);
+      var logoutData={classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+      // Salva su Firestore e ASPETTA il completamento prima di fare logout
+      if(db&&uid){
+        syncStatus='saving';renderSyncBar();
+        db.collection('users').doc(uid).set(logoutData).then(function(){
+          console.log('[LOGOUT] Firestore save SUCCESS, proceeding with logout');
+          // NON pulire localStorage - è il backup!
+          try{auth.signOut();}catch(e){}
+          setTimeout(function(){window.location.reload();},500);
+        }).catch(function(err){
+          console.error('[LOGOUT] Firestore save FAILED:',err);
+          // Salva comunque in localStorage come backup
+          try{localStorage.setItem('rp_data_'+uid,JSON.stringify({classes:logoutData.classes,currentClassId:logoutData.currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e2){}
+          try{auth.signOut();}catch(e){}
+          setTimeout(function(){window.location.reload();},500);
+        });
+      }else{
+        // Nessun db, salva in localStorage e procedi
+        try{localStorage.setItem('rp_data_'+uid,JSON.stringify({classes:logoutData.classes,currentClassId:logoutData.currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
+        try{auth.signOut();}catch(e){}
+        setTimeout(function(){window.location.reload();},500);
+      }
     }
   }else{
     loginLoading=true;render();
