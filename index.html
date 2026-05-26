@@ -233,7 +233,30 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .stat-sub{font-size:11px;color:#aaa}
 .stat-value{font-size:36px;font-weight:700;line-height:1}
 .google-icon{display:inline-flex;vertical-align:middle}
-@media print{body{background:white!important;background-image:none!important}.btn,.btn-row,.auth-bar,.sync-bar,.search-box,.arrow-btn,.diet-btn{display:none!important}.header-icon,.user-badge{display:none!important}.card,.roster,.stat-card{box-shadow:none!important;border:1px solid #eee}}
+.msg-section{background:#1a1a2e;border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.msg-section-label{font-size:12px;font-weight:600;color:#ffd700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.msg-box{background:rgba(255,255,255,0.06);border:1.5px solid rgba(255,255,255,0.12);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.msg-box:last-child{margin-bottom:0}
+.msg-box-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.msg-box-class{font-size:13px;font-weight:700;color:white;letter-spacing:0.3px}
+.msg-box-count{font-size:10px;font-weight:600;color:rgba(255,255,255,0.4)}
+.msg-item{display:flex;align-items:flex-start;gap:8px;padding:6px 8px;background:rgba(255,255,255,0.05);border-radius:8px;margin-bottom:4px;font-size:12px;color:rgba(255,255,255,0.9);line-height:1.4}
+.msg-item:last-child{margin-bottom:0}
+.msg-item-text{flex:1;word-break:break-word}
+.msg-item-time{font-size:10px;color:rgba(255,255,255,0.35);white-space:nowrap;flex-shrink:0;margin-top:1px}
+.msg-item-del{width:18px;height:18px;border-radius:50%;border:none;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.4);font-size:12px;font-weight:700;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;line-height:1}
+.msg-item-del:hover{background:#dc3545;color:white}
+.msg-input-row{display:flex;gap:6px;margin-top:6px}
+.msg-input-row input{flex:1;padding:6px 10px;border:1.5px solid rgba(255,255,255,0.2);border-radius:8px;background:rgba(255,255,255,0.08);color:white;font-size:12px;font-family:inherit;outline:none}
+.msg-input-row input::placeholder{color:rgba(255,255,255,0.3)}
+.msg-input-row input:focus{border-color:#ffd700}
+.msg-input-row button{padding:6px 12px;border:none;border-radius:8px;background:#ffd700;color:#1a1a2e;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all 0.15s}
+.msg-input-row button:hover{background:#ffe44d}
+.msg-input-row button:active{transform:scale(0.97)}
+.msg-received-section{background:#1a1a2e;border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.msg-received-label{font-size:12px;font-weight:600;color:#64b5f6;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.msg-empty{font-size:12px;color:rgba(255,255,255,0.3);font-style:italic;text-align:center;padding:8px 0}
+@media print{body{background:white!important;background-image:none!important}.btn,.btn-row,.auth-bar,.sync-bar,.search-box,.arrow-btn,.diet-btn{display:none!important}.header-icon,.user-badge{display:none!important}.card,.roster,.stat-card,.msg-section,.msg-received-section{box-shadow:none!important;border:1px solid #eee}}
 @media(min-width:768px){.app{max-width:900px;padding:24px}.header{padding:28px 32px}.header-icon{font-size:56px}.school-name{font-size:13px}.class-name{font-size:26px}.class-sub{font-size:15px}.teacher-name{font-size:14px}.teacher-field{font-size:13px}.child-name-badge{font-size:15px;padding:8px 14px}.age-circle{width:30px;height:30px;font-size:14px}.roster-header{grid-template-columns:1fr 36px 52px 56px 56px 56px;gap:6px;padding:12px 16px}.child-row{grid-template-columns:1fr 36px 52px 56px 56px 56px;gap:6px;padding:10px 16px}.pre-btn,.post-btn{width:48px;font-size:11px;padding:5px 6px}.diet-btn{width:28px;height:28px;font-size:14px}.check-cell input[type=checkbox]{width:20px;height:20px}.btn{padding:10px 18px;font-size:14px}.stat-value{font-size:42px}.card{padding:20px}}
 @media(max-width:400px){.roster-header{grid-template-columns:1fr 26px 36px 40px 40px 40px}.child-row{grid-template-columns:1fr 26px 36px 40px 40px 40px}.child-name-badge{font-size:12px;padding:5px 4px}.age-circle{width:22px;height:22px;font-size:8px}.pre-btn,.post-btn{width:34px;font-size:8px;padding:3px 3px}.diet-btn{width:20px;height:20px;font-size:10px}.check-cell input[type=checkbox]{width:14px;height:14px}}
 </style>
@@ -1121,6 +1144,61 @@ function render(){
   html+='</div>';
   html+='<button class="btn btn-success-fill btn-full" onclick="App.share()"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> Condividi</button>';
   html+='</div>';
+
+  // COMUNICAZIONI - Sezione messaggi
+  if(isCoordinatrice()){
+    // COORDINATRICE: box per ogni classe con input per scrivere
+    html+='<div class="msg-section">';
+    html+='<div class="msg-section-label"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffd700" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Comunicazioni alle Classi</div>';
+    var coorClassKeys=Object.keys(classes);
+    for(var mci=0;mci<coorClassKeys.length;mci++){
+      var mcId=coorClassKeys[mci];
+      if(mcId===COORDINATRICE_ID) continue;
+      var mcName=classes[mcId].name||'Classe';
+      var mcMsgs=classes[mcId].messages||[];
+      html+='<div class="msg-box">';
+      html+='<div class="msg-box-header"><span class="msg-box-class">'+esc(mcName.toUpperCase())+'</span><span class="msg-box-count">'+mcMsgs.length+' msg</span></div>';
+      if(mcMsgs.length===0){
+        html+='<div class="msg-empty">Nessuna comunicazione</div>';
+      } else {
+        for(var mi=0;mi<mcMsgs.length;mi++){
+          var m=mcMsgs[mi];
+          var mTime=m.timestamp?new Date(m.timestamp):null;
+          var mTimeStr=mTime?mTime.getDate()+'/'+(mTime.getMonth()+1)+' '+String(mTime.getHours()).padStart(2,'0')+':'+String(mTime.getMinutes()).padStart(2,'0'):'';
+          html+='<div class="msg-item">';
+          html+='<span class="msg-item-text">'+esc(m.text)+'</span>';
+          html+='<span class="msg-item-time">'+mTimeStr+'</span>';
+          html+='<button class="msg-item-del" onclick="App.deleteMessage(\''+mcId+'\','+mi+')" title="Cancella comunicazione">\u00d7</button>';
+          html+='</div>';
+        }
+      }
+      html+='<div class="msg-input-row">';
+      html+='<input id="msgInput_'+mcId+'" placeholder="Scrivi comunicazione per '+esc(mcName.toUpperCase())+'..." onkeydown="if(event.key===\'Enter\')App.sendMessage(\''+mcId+'\')"/>';
+      html+='<button onclick="App.sendMessage(\''+mcId+'\')">Invia</button>';
+      html+='</div>';
+      html+='</div>';
+    }
+    html+='</div>';
+  } else {
+    // CLASSE NORMALE: mostra comunicazioni ricevute dalla coordinatrice
+    var rcvMsgs=(currentClassId&&classes[currentClassId])?(classes[currentClassId].messages||[]):[];
+    html+='<div class="msg-received-section">';
+    html+='<div class="msg-received-label"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64b5f6" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Comunicazioni dalla Coordinatrice</div>';
+    if(rcvMsgs.length===0){
+      html+='<div class="msg-empty">Nessuna comunicazione ricevuta</div>';
+    } else {
+      for(var ri=0;ri<rcvMsgs.length;ri++){
+        var rm=rcvMsgs[ri];
+        var rmTime=rm.timestamp?new Date(rm.timestamp):null;
+        var rmTimeStr=rmTime?rmTime.getDate()+'/'+(rmTime.getMonth()+1)+' '+String(rmTime.getHours()).padStart(2,'0')+':'+String(rmTime.getMinutes()).padStart(2,'0'):'';
+        html+='<div class="msg-item">';
+        html+='<span class="msg-item-text">'+esc(rm.text)+'</span>';
+        html+='<span class="msg-item-time">'+rmTimeStr+'</span>';
+        html+='</div>';
+      }
+    }
+    html+='</div>';
+  }
 
   html+='<div class="card-dark"><div class="card-label">DATA</div><div class="date-nav">';
   html+='<button class="arrow-btn" onclick="App.prevDate()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>';
@@ -2493,6 +2571,32 @@ window.App={
   share:function(){
     if(navigator.share){navigator.share({title:'Registro di Classe - '+className,url:window.location.href}).catch(function(){});}
     else{var ta=document.createElement('textarea');ta.value=window.location.href;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);alert('Link copiato negli appunti!');}
+  },
+  sendMessage:function(classId){
+    if(!classId||!classes[classId]) return;
+    var input=document.getElementById('msgInput_'+classId);
+    if(!input) return;
+    var text=input.value.trim();
+    if(!text) return;
+    if(!classes[classId].messages) classes[classId].messages=[];
+    classes[classId].messages.push({text:text,timestamp:Date.now()});
+    input.value='';
+    saveCurrentClassData();
+    try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
+    saveToFirestoreNow();
+    render();
+  },
+  deleteMessage:function(classId,msgIdx){
+    if(!classId||!classes[classId]) return;
+    if(!classes[classId].messages) return;
+    if(msgIdx<0||msgIdx>=classes[classId].messages.length) return;
+    var msgText=classes[classId].messages[msgIdx].text;
+    if(!confirm('Cancellare la comunicazione:\n"'+msgText+'"\n\nVerrà cancellata anche nella classe di riferimento.')) return;
+    classes[classId].messages.splice(msgIdx,1);
+    saveCurrentClassData();
+    try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
+    saveToFirestoreNow();
+    render();
   }
 };
 
