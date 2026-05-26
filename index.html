@@ -1378,13 +1378,17 @@ function render(){
   var dayOff=isDayOff();
   var locked=classLocked;
   var noEdit=dayOff||locked;
-  html+='<div class="roster"><div class="roster-header">';
+  var isCoor=isCoordinatrice();
+  var rosterCols=isCoor?'1fr 40px':'1fr 30px 42px 48px 48px 48px';
+  html+='<div class="roster"><div class="roster-header" style="grid-template-columns:'+rosterCols+'">';
   html+='<span style="color:#5b9bd5">COGNOME E NOME</span>';
   html+='<div class="roster-col"><label class="label-age">Età</label></div>';
+  if(!isCoor){
   html+='<div class="roster-col"><label class="label-diet">Dieta</label></div>';
   html+='<div class="roster-col"><label class="label-presenza">Presenza</label>'+(noEdit?'':'<input type="checkbox" class="select-all-check" '+(totalPresenze===children.length&&children.length>0?'checked':'')+' onchange="App.selectAllPresenza(this.checked)"/>')+'</div>';
   html+='<div class="roster-col"><label class="label-pre">Pre</label>'+(noEdit?'':'<input type="checkbox" class="select-all-check" '+(totalPre===children.length&&children.length>0?'checked':'')+' onchange="App.selectAllPre(this.checked)"/>')+'</div>';
   html+='<div class="roster-col"><label class="label-post">Post</label>'+(noEdit?'':'<input type="checkbox" class="select-all-check" '+(totalPost===children.length&&children.length>0?'checked':'')+' onchange="App.selectAllPost(this.checked)"/>')+'</div>';
+  }
   html+='</div>';
   if(dayOff){html+='<div style="text-align:center;padding:20px;color:rgba(255,255,255,0.5);font-size:13px;font-style:italic">'+(isWeekend()?'Weekend \u2014 nessuna presenza':'Giorno festivo \u2014 nessuna presenza')+'</div>';}
   else if(locked){html+='<div style="text-align:center;padding:20px;color:#dc3545;font-size:13px;font-weight:600">\ud83d\udd12 Classe bloccata \u2014 Inserisci il PIN per modificare le presenze</div>';}
@@ -1414,21 +1418,11 @@ function render(){
         var idx=grp.items[ci].i;var name=grp.items[ci].name;
         var hasDiet=childDiets[idx]&&childDiets[idx].type&&childDiets[idx].type!=='nessuna';
         var gClass=getGenderClass(idx);
-        html+='<div class="child-row '+gClass+'-row" data-name="'+esc(name.toLowerCase())+'"><div class="child-info">';
+        html+='<div class="child-row '+gClass+'-row" style="grid-template-columns:1fr 40px" data-name="'+esc(name.toLowerCase())+'"><div class="child-info">';
         html+='<div class="child-name-badge '+gClass+'" onclick="App.showChildDetail('+idx+')" title="Clicca per vedere il riepilogo">'+esc(nameReversed(name))+'</div>';
         html+='</div>';
         var age=childAge[idx]||'';
         html+='<div class="age-cell"><div class="age-circle '+(age?'has-age':'')+'" '+(locked?'':'onclick="App.editAge('+idx+')"')+' title="Clicca per inserire età">'+(age?esc(String(age)):'-')+'</div></div>';
-        html+='<div class="diet-cell"><button class="diet-btn '+(hasDiet?'has-diet':'')+'" '+(locked?'disabled style="opacity:0.5;cursor:not-allowed"':'onclick="App.openDietModal('+idx+')"')+' title="Dieta">\ud83c\udf7d</button></div>';
-        if(noEdit){
-          html+='<div class="check-cell"><input type="checkbox" disabled style="opacity:0.3;accent-color:#28a745"/></div>';
-          html+='<div class="check-cell"><button class="pre-btn" disabled style="opacity:0.3;cursor:not-allowed">PRE</button></div>';
-          html+='<div class="check-cell"><button class="post-btn" disabled style="opacity:0.3;cursor:not-allowed">POST</button></div>';
-        }else{
-          html+='<div class="check-cell"><input type="checkbox" '+(hasKey(presenze,idx)?'checked':'')+' onchange="App.togglePresenza('+idx+')"/></div>';
-          html+='<div class="check-cell"><button class="pre-btn '+(hasKey(pre,idx)?'active':'')+'" onclick="App.togglePre('+idx+')">PRE</button></div>';
-          html+='<div class="check-cell"><button class="post-btn '+(hasKey(post,idx)?'active':'')+'" onclick="App.togglePost('+idx+')">POST</button></div>';
-        }
         html+='</div>';
       }
     }
@@ -1469,8 +1463,10 @@ function render(){
   html+='</div>';
 
   html+='<div class="stat-card"><div><div class="stat-label">Totale presenze</div><div class="stat-sub">'+esc(dateToFull(currentDate))+'</div></div><div class="stat-value" style="color:#28a745">'+totalPresenze+'</div></div>';
+  if(!isCoor){
   html+='<div class="stat-card"><div><div class="stat-label">Totale pre</div><div class="stat-sub">Ingressi Anticipati</div></div><div class="stat-value" style="color:#e67e00">'+totalPre+'</div></div>';
   html+='<div class="stat-card"><div><div class="stat-label">Totale post</div><div class="stat-sub">Uscite Posticipate</div></div><div class="stat-value" style="color:#007bff">'+totalPost+'</div></div>';
+  }
 
   // Close locked overlay
   if(classLocked){html+='</div>';}
