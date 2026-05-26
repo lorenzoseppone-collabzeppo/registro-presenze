@@ -979,31 +979,18 @@ function handleLogin(){
   if(currentUser){
     if(confirm('Vuoi disconnettere l\'account "'+(currentUser.displayName||currentUser.email)+'"?\n\nI dati rimarranno salvati nel tuo account Google.')){
       var uid=currentUser.uid;
-      saveCurrentClassData();
-      var logoutData={classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
-      // Salva in localStorage SUBITO come backup
-      try{localStorage.setItem('rp_data_'+uid,JSON.stringify({classes:logoutData.classes,currentClassId:logoutData.currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
-      var logoutDone=false;
-      function doLogout(){
-        if(logoutDone) return;
-        logoutDone=true;
-        try{auth.signOut();}catch(e){}
-        setTimeout(function(){window.location.reload();},500);
-      }
-      if(db&&uid){
-        syncStatus='saving';renderSyncBar();
-        db.collection('users').doc(uid).set(logoutData).then(function(){
-          console.log('[LOGOUT] Firestore save SUCCESS');
-          doLogout();
-        }).catch(function(err){
-          console.error('[LOGOUT] Firestore save FAILED:',err);
-          doLogout();
-        });
-        // Timeout: se il salvataggio non finisce entro 3 secondi, fai logout comunque
-        setTimeout(function(){doLogout();},3000);
-      }else{
-        doLogout();
-      }
+      try{saveCurrentClassData();}catch(e){}
+      // Salva in localStorage SUBITO come backup (sincrono, affidabile)
+      try{localStorage.setItem('rp_data_'+uid,JSON.stringify({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
+      // Prova a salvare su Firestore (fire and forget - non bloccare il logout)
+      try{
+        if(db&&uid){
+          db.collection('users').doc(uid).set({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()}).catch(function(err){console.error('[LOGOUT] Firestore save failed:',err);});
+        }
+      }catch(e){console.error('[LOGOUT] Firestore error:',e);}
+      // Fai logout SUBITO - non aspettare Firestore
+      try{auth.signOut();}catch(e){}
+      setTimeout(function(){window.location.reload();},500);
     }
   }else{
     loginLoading=true;render();
