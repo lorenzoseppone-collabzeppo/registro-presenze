@@ -1216,13 +1216,21 @@ window.App={
     var name=prompt('Nome della nuova classe\n(es. Farfalle, Cuori, Stelle):');
     if(!name||!name.trim()) return;
     name=name.trim().toUpperCase();
-    var isFirstClass=regularClassCount()===0;
+    var wasFirstRegular=regularClassCount()===0;
+    var isFirstClass=totalClassCount()<=1;
     var pin='';
     if(!isFirstClass){
       pin=prompt('Crea un PIN per questa classe (4-6 cifre):\nIl PIN sarà richiesto per accedere a questa classe.');
       if(pin===null) return;
       if(!pin.trim()||!/^\d{4,6}$/.test(pin.trim())){alert('Il PIN è obbligatorio e deve essere di 4-6 cifre.');return;}
       pin=pin.trim();
+    }
+    // Se è la prima classe regolare (prima c'era solo COORDINATRICE), chiedi PIN anche per COORDINATRICE
+    if(wasFirstRegular&&classes[COORDINATRICE_ID]&&!classes[COORDINATRICE_ID].pin){
+      var coorPin=prompt('Ora che hai più classi, imposta un PIN anche per la COORDINATRICE (4-6 cifre):\nIl PIN sarà richiesto per accedere alla COORDINATRICE.');
+      if(coorPin&&coorPin.trim()&&/^\d{4,6}$/.test(coorPin.trim())){
+        classes[COORDINATRICE_ID].pin=coorPin.trim();
+      }
     }
     saveCurrentClassData();
     var newId=generateClassId();
