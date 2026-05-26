@@ -319,6 +319,7 @@ var classLocked = false;
 var COORDINATRICE_ID = '__coordinatrice__';
 
 function regularClassCount(){var c=0;for(var k in classes){if(classes.hasOwnProperty(k)&&k!==COORDINATRICE_ID)c++;}return c;}
+function totalClassCount(){return Object.keys(classes).length;}
 function isCoordinatrice(){return currentClassId===COORDINATRICE_ID;}
 
 var DAYS = ['Domenica','Luned\u00ec','Marted\u00ec','Mercoled\u00ec','Gioved\u00ec','Venerd\u00ec','Sabato'];
@@ -403,7 +404,7 @@ function rebuildCoordinatriceChildren(){
   }
   dateData=c.dateData||{};
   holidays={};dayNotes={};
-  className='COORDINATRICE';teacher1=c.teacher1||'';teacher2=c.teacher2||'';sortMode='default';
+  className='COORDINATRICE';teacher1=c.teacher1||'';teacher2='';sortMode='default';
   var key=getCurrentDateKey();var dd=dateData[key];
   if(dd){presenze=dd.presenze||{};pre=dd.pre||{};post=dd.post||{};}
   else{presenze={};pre={};post={};}
@@ -475,7 +476,7 @@ function saveCurrentClassData(){
     classes[currentClassId].pin=classes[currentClassId].pin||'';
     classes[currentClassId].dateData=JSON.parse(JSON.stringify(dateData));
     classes[currentClassId].teacher1=teacher1;
-    classes[currentClassId].teacher2=teacher2;
+    classes[currentClassId].teacher2='';
     return;
   }
   // Sync: usa sempre il nome salvato nella classe se diverso da className globale
@@ -566,16 +567,16 @@ function ensureDefaultClass(){
 
 function updateClassLockState(){
   if(!currentClassId||!classes[currentClassId]){classLocked=false;return;}
-  // Se c'è solo 1 classe regolare, il PIN non serve mai (COORDINATRICE non conta)
-  if(regularClassCount()<=1){classLocked=false;unlockedClasses[currentClassId]=true;return;}
+  // Se c'è solo 1 classe in totale, il PIN non serve mai
+  if(totalClassCount()<=1){classLocked=false;unlockedClasses[currentClassId]=true;return;}
   var pin=classes[currentClassId].pin||'';
   classLocked=pin&&pin.length>0&&!unlockedClasses[currentClassId];
 }
 
 function tryUnlockClass(classId){
   if(!classes[classId]) return false;
-  // Se c'è solo 1 classe regolare, nessun PIN richiesto
-  if(regularClassCount()<=1){unlockedClasses[classId]=true;return true;}
+  // Se c'è solo 1 classe in totale, nessun PIN richiesto
+  if(totalClassCount()<=1){unlockedClasses[classId]=true;return true;}
   var pin=classes[classId].pin||'';
   if(!pin){unlockedClasses[classId]=true;return true;}
   if(unlockedClasses[classId]) return true;
@@ -817,18 +818,26 @@ function render(){
   if(editingSchool){html+='<input class="school-name-input" id="schoolInput" value="'+esc(schoolName)+'" onblur="App.finishEditSchool()" onkeydown="if(event.key===\'Enter\')App.finishEditSchool()"/>';}
   else{html+='<div class="school-name" onclick="App.startEditSchool()" title="Clicca per modificare">'+esc(schoolName)+'</div>';}
   var displayClassName=(currentClassId&&classes[currentClassId])?classes[currentClassId].name:className;
-  if(editingClass){html+='<input class="class-name-input" id="classInput" value="'+esc(displayClassName.toUpperCase())+'" onblur="App.finishEditClass()" onkeydown="if(event.key===\'Enter\')App.finishEditClass()"/>';}
-  else{html+='<div class="class-name" onclick="App.startEditClass()" title="Clicca per modificare">'+esc(displayClassName.toUpperCase())+'</div>';}
+  if(editingClass&&!isCoordinatrice()){html+='<input class="class-name-input" id="classInput" value="'+esc(displayClassName.toUpperCase())+'" onblur="App.finishEditClass()" onkeydown="if(event.key===\'Enter\')App.finishEditClass()"/>';}
+  else{html+='<div class="class-name"'+(isCoordinatrice()?' style="cursor:default"':' onclick="App.startEditClass()" title="Clicca per modificare"')+'>'+esc(displayClassName.toUpperCase())+'</div>';}
   html+='<div class="class-sub">REGISTRO DI CLASSE</div>';
   html+='<div class="header-teachers">';
-  html+='<div class="teacher-field"><span>Insegnante 1:</span>';
-  if(editingTeacher1){html+='<input class="teacher-name-input" id="teacher1Input" value="'+esc(teacher1)+'" onblur="App.finishEditTeacher1()" onkeydown="if(event.key===\'Enter\')App.finishEditTeacher1()"/>';}
-  else{html+='<div class="teacher-name" onclick="App.startEditTeacher1()" title="Clicca per modificare">'+esc(teacher1||'—')+'</div>';}
-  html+='</div>';
-  html+='<div class="teacher-field"><span>Insegnante 2:</span>';
-  if(editingTeacher2){html+='<input class="teacher-name-input" id="teacher2Input" value="'+esc(teacher2)+'" onblur="App.finishEditTeacher2()" onkeydown="if(event.key===\'Enter\')App.finishEditTeacher2()"/>';}
-  else{html+='<div class="teacher-name" onclick="App.startEditTeacher2()" title="Clicca per modificare">'+esc(teacher2||'—')+'</div>';}
-  html+='</div>';
+  if(isCoordinatrice()){
+    // COORDINATRICE: un solo campo "Coordinatrice"
+    html+='<div class="teacher-field"><span>Coordinatrice:</span>';
+    if(editingTeacher1){html+='<input class="teacher-name-input" id="teacher1Input" value="'+esc(teacher1)+'" onblur="App.finishEditTeacher1()" onkeydown="if(event.key===\'Enter\')App.finishEditTeacher1()"/>';}
+    else{html+='<div class="teacher-name" onclick="App.startEditTeacher1()" title="Clicca per modificare">'+esc(teacher1||'—')+'</div>';}
+    html+='</div>';
+  } else {
+    html+='<div class="teacher-field"><span>Insegnante 1:</span>';
+    if(editingTeacher1){html+='<input class="teacher-name-input" id="teacher1Input" value="'+esc(teacher1)+'" onblur="App.finishEditTeacher1()" onkeydown="if(event.key===\'Enter\')App.finishEditTeacher1()"/>';}
+    else{html+='<div class="teacher-name" onclick="App.startEditTeacher1()" title="Clicca per modificare">'+esc(teacher1||'—')+'</div>';}
+    html+='</div>';
+    html+='<div class="teacher-field"><span>Insegnante 2:</span>';
+    if(editingTeacher2){html+='<input class="teacher-name-input" id="teacher2Input" value="'+esc(teacher2)+'" onblur="App.finishEditTeacher2()" onkeydown="if(event.key===\'Enter\')App.finishEditTeacher2()"/>';}
+    else{html+='<div class="teacher-name" onclick="App.startEditTeacher2()" title="Clicca per modificare">'+esc(teacher2||'—')+'</div>';}
+    html+='</div>';
+  }
   html+='</div>';
   html+='</div>';
   if(currentUser){html+='<div class="user-badge">';if(currentUser.photoURL) html+='<img src="'+esc(currentUser.photoURL)+'" alt=""/>';html+='<span>'+esc(currentUser.displayName||currentUser.email)+'</span></div>';}
@@ -876,7 +885,7 @@ function render(){
     html+='</div>';
   }
   html+='<div class="class-tab-add" onclick="App.addClass()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Aggiungi Classe</div>';
-  if(currentUser&&currentClassId&&regularClassCount()>1){html+='<div class="class-tab" style="border-color:rgba(255,255,255,0.5);color:white;font-size:11px" onclick="App.managePin()" title="Gestisci PIN classe">\ud83d\udd12 PIN</div>';}
+  if(currentUser&&currentClassId&&totalClassCount()>1){html+='<div class="class-tab" style="border-color:rgba(255,255,255,0.5);color:white;font-size:11px" onclick="App.managePin()" title="Gestisci PIN classe">\ud83d\udd12 PIN</div>';}
   html+='</div>';
 
   // Locked class banner
@@ -1256,8 +1265,8 @@ window.App={
   switchClass:function(classId){
     if(classId===currentClassId) return;
     if(!tryUnlockClass(classId)) return;
-    // Ri-blocca la classe corrente quando si cambia: ogni accesso richiede il PIN (solo se ci sono più classi regolari)
-    if(regularClassCount()>1&&currentClassId&&classes[currentClassId]&&classes[currentClassId].pin){
+    // Ri-blocca la classe corrente quando si cambia: ogni accesso richiede il PIN (se ci sono più classi)
+    if(totalClassCount()>1&&currentClassId&&classes[currentClassId]&&classes[currentClassId].pin){
       delete unlockedClasses[currentClassId];
     }
     saveCurrentClassData();
