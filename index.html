@@ -709,8 +709,9 @@ function loadFromFirestore(uid){
         var key=getCurrentDateKey();var dd=dateData[key];
         if(dd){presenze=dd.presenze||{};pre=dd.pre||{};post=dd.post||{};}
         else{presenze={};pre={};post={};}
-        // Sblocca sempre la classe corrente dopo il caricamento (non chiedere PIN al refresh)
-        if(currentClassId){unlockedClasses[currentClassId]=true;}
+        // Non sbloccare automaticamente le classi con PIN - l'utente deve inserirlo
+        // Se la classe non ha PIN, sbloccala automaticamente
+        if(currentClassId&&classes[currentClassId]&&!(classes[currentClassId].pin&&classes[currentClassId].pin.length>0)){unlockedClasses[currentClassId]=true;}
         // Save in new format
         try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:classes,currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
       }else{
@@ -1323,9 +1324,17 @@ window.App={
     if(newPin.trim()&&!/^\d{4,6}$/.test(newPin.trim())){alert('Il PIN deve essere di 4-6 cifre.');return;}
     classes[currentClassId].pin=newPin.trim();
     if(!newPin.trim()){unlockedClasses[currentClassId]=true;}
+    else{unlockedClasses[currentClassId]=true;}
     updateClassLockState();
-    saveState();render();
-    alert(newPin.trim()?'PIN impostato con successo! La classe ora richiede il PIN per l\'accesso.':'PIN rimosso. La classe ora e accessibile liberamente.');
+    // Salva IMMEDIATAMENTE su Firestore (senza ritardo) per non perdere il PIN
+    saveCurrentClassData();
+    try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:classes,currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
+    if(currentUser&&db){
+      var data={classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+      db.collection('users').doc(currentUser.uid).set(data).then(function(){syncStatus='synced';renderSyncBar();}).catch(function(err){console.error('Save error:',err);syncStatus='error';renderSyncBar();});
+    }
+    render();
+    alert(newPin.trim()?'PIN impostato con successo!\nDopo il refresh della pagina ti verrà richiesto il PIN per accedere.':'PIN rimosso. La classe ora è accessibile liberamente.');
   },
   manageCoordinatricePin:function(){
     if(!classes[COORDINATRICE_ID]) return;
@@ -1335,11 +1344,23 @@ window.App={
     if(newPin===null) return;
     if(newPin.trim()&&!/^\d{4,6}$/.test(newPin.trim())){alert('Il PIN deve essere di 4-6 cifre.');return;}
     classes[COORDINATRICE_ID].pin=newPin.trim();
-    // Sblocca sempre la COORDINATRICE dopo aver gestito il PIN
-    unlockedClasses[COORDINATRICE_ID]=true;
+    if(newPin.trim()){
+      // PIN impostato - sblocca subito per questa sessione
+      unlockedClasses[COORDINATRICE_ID]=true;
+    }else{
+      // PIN rimosso - sblocca permanentemente
+      unlockedClasses[COORDINATRICE_ID]=true;
+    }
     updateClassLockState();
-    saveState();render();
-    alert(newPin.trim()?'PIN COORDINATRICE impostato con successo!':'PIN COORDINATRICE rimosso. La COORDINATRICE ora è accessibile liberamente.');
+    // Salva IMMEDIATAMENTE su Firestore (senza ritardo) per non perdere il PIN
+    saveCurrentClassData();
+    try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:classes,currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
+    if(currentUser&&db){
+      var data={classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+      db.collection('users').doc(currentUser.uid).set(data).then(function(){syncStatus='synced';renderSyncBar();}).catch(function(err){console.error('Save error:',err);syncStatus='error';renderSyncBar();});
+    }
+    render();
+    alert(newPin.trim()?'PIN COORDINATRICE impostato con successo!\nDopo il refresh della pagina ti verrà richiesto il PIN per accedere.':'PIN COORDINATRICE rimosso. La COORDINATRICE ora è accessibile liberamente.');
   },
   addChild:function(){
     var name=prompt('Nome del nuovo bambino\n(es. Rossi Luca):');
