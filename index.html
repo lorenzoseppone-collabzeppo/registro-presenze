@@ -766,34 +766,20 @@ function handleLogin(){
     if(confirm('Vuoi disconnettere l\'account "'+(currentUser.displayName||currentUser.email)+'"?\n\nI dati rimarranno salvati nel tuo account Google.')){
       var uid=currentUser.uid;
       saveCurrentClassData();
-      // Salva subito su Firestore prima del logout (deep copy dei dati)
-      var saveDone=false;
-      var doLogout=function(){
-        if(saveDone) return;
-        saveDone=true;
-        // Pulisci tutto lo stato locale
-        try{localStorage.removeItem('rp_data_'+uid);}catch(e){}
-        try{localStorage.removeItem('rp_data');}catch(e){}
-        currentUser=null;
-        loginLoading=false;
-        resetAllData();
-        // Effettua il logout Firebase
-        auth.signOut().then(function(){
-          console.log('Firebase signOut OK - ricarico la pagina');
-          // Ricarica la pagina per pulire completamente lo stato Firebase
-          window.location.reload();
-        }).catch(function(err){
-          console.error('signOut error:',err);
-          // Anche se fallisce, forza il ricaricamento
-          window.location.reload();
-        });
-      };
-      if(db&&uid){
-        var data={classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
-        db.collection('users').doc(uid).set(data).then(function(){doLogout();}).catch(function(err){console.error('Pre-logout save error:',err);doLogout();});
-      }else{
-        doLogout();
-      }
+      // Salva su Firestore senza aspettare (fire and forget)
+      try{
+        if(db&&uid){
+          var data={classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+          db.collection('users').doc(uid).set(data).catch(function(){});
+        }
+      }catch(e){}
+      // Pulisci localStorage
+      try{localStorage.removeItem('rp_data_'+uid);}catch(e){}
+      try{localStorage.removeItem('rp_data');}catch(e){}
+      // Effettua il logout Firebase subito, senza aspettare nulla
+      try{auth.signOut();}catch(e){}
+      // Forza ricaricamento pagina dopo mezzo secondo
+      setTimeout(function(){window.location.reload();},500);
     }
   }else{
     loginLoading=true;render();
