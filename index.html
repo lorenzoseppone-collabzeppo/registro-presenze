@@ -46,6 +46,27 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .btn-full{width:100%;padding:8px 18px;margin-bottom:16px}
 .card{background:white;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
 .card-label{font-size:12px;font-weight:600;color:#dc3545;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px}
+.card-dark{background:#1a1a2e;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.card-dark .card-label{color:#ffd700}
+.card-dark .date-text{color:white}
+.card-dark .date-full{color:rgba(255,255,255,0.6)}
+.card-dark .arrow-btn{border-color:rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:white}
+.card-dark .arrow-btn:active{background:rgba(255,255,255,0.2)}
+.card-dark .badge-green{background:rgba(40,167,69,0.2);color:#5dff8e}
+.card-dark .badge-green .dot{background:#5dff8e}
+.card-dark .badge-orange{background:rgba(230,126,0,0.2);color:#ffb74d}
+.card-dark .badge-orange .dot{background:#ffb74d}
+.card-dark .badge-blue{background:rgba(0,123,255,0.2);color:#64b5f6}
+.card-dark .badge-blue .dot{background:#64b5f6}
+.card-dark .search-box{border-color:rgba(255,255,255,0.2);background:rgba(255,255,255,0.1)}
+.card-dark .search-box input{color:white}
+.card-dark .search-box input::placeholder{color:rgba(255,255,255,0.4)}
+.card-dark .search-box svg{stroke:rgba(255,255,255,0.5)}
+.card-dark textarea{background:rgba(255,255,255,0.1)!important;border-color:rgba(255,255,255,0.2)!important;color:white!important}
+.card-dark textarea::placeholder{color:rgba(255,255,255,0.4)!important}
+.card-dark textarea:disabled{opacity:0.5}
+.card-dark .btn{background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:white}
+.card-dark .btn:hover{background:rgba(255,255,255,0.2)}
 .date-nav{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:8px}
 .date-text{font-size:18px;font-weight:600;color:#1a1a2e;cursor:pointer;padding:4px 8px;border-radius:6px;transition:background 0.15s}
 .arrow-btn{width:32px;height:32px;border-radius:50%;border:1px solid #ddd;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#888;transition:all 0.15s}
@@ -771,7 +792,7 @@ function render(){
   html+='<button class="btn btn-success-fill btn-full" onclick="App.share()"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> Condividi</button>';
   html+='</div>';
 
-  html+='<div class="card"><div class="card-label">DATA</div><div class="date-nav">';
+  html+='<div class="card-dark"><div class="card-label">DATA</div><div class="date-nav">';
   html+='<button class="arrow-btn" onclick="App.prevDate()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>';
   html+='<span class="date-text" onclick="App.pickDate()" style="cursor:pointer" title="Clicca per scegliere la data">'+esc(dateToShort(currentDate))+'</span>';
   html+='<button class="arrow-btn" onclick="App.nextDate()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>';
@@ -800,7 +821,7 @@ function render(){
   html+='<textarea id="dayNoteInput" placeholder="'+notePlaceholder+'" style="width:100%;min-height:36px;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;font-family:inherit;resize:vertical;outline:none;color:#333;background:'+(noteDisabled?'#f5f5f5':'white')+'" oninput="App.updateDayNote(this.value)" '+(noteDisabled?'disabled':'')+'>'+esc(todayNote)+'</textarea></div>';
   html+='</div>';
 
-  html+='<div class="card"><div class="card-label">RICERCA BAMBINO</div>';
+  html+='<div class="card-dark"><div class="card-label">RICERCA BAMBINO</div>';
   html+='<div class="search-box"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#aaa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" id="searchInput" placeholder="Cerca per nome o cognome..." value="'+esc(search)+'" oninput="App.setSearchLive(this.value)"/>';
   html+='<button id="searchClearBtn" style="background:none;border:none;cursor:pointer;padding:2px;margin-left:4px'+(search?'':';display:none')+'" onclick="App.clearSearchLive()" title="Cancella ricerca"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
   html+='</div>';
