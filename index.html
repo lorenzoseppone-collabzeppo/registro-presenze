@@ -145,50 +145,52 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .diet-custom-input{width:100%;padding:8px 12px;border:2px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;outline:none;margin-bottom:8px}
 .diet-custom-input:focus{border-color:#007bff}
 .child-detail-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px}
-.child-detail{background:white;border-radius:16px;padding:20px;max-width:400px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.2);max-height:85vh;overflow-y:auto}
+.child-detail{background:#1a1a2e;color:white;border-radius:16px;padding:20px;max-width:400px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.3);max-height:85vh;overflow-y:auto}
 .child-detail-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
-.child-detail-avatar{width:48px;height:48px;border-radius:50%;background:#1a1a2e;color:white;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0;cursor:pointer}
+.child-detail-avatar{width:48px;height:48px;border-radius:50%;background:#444;color:white;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0;cursor:pointer}
 .child-detail-avatar.male{background:#5b9bd5}
 .child-detail-avatar.female{background:#e87da0}
 .gender-hint{font-size:10px;color:#888;margin-top:2px;font-style:italic}
-.child-detail-name{font-size:22px;font-weight:700;color:#1a1a2e}
-.child-detail-diet{font-size:15px;color:#555;margin-top:4px;font-weight:600}
+.child-detail-name{font-size:22px;font-weight:700;color:white}
+.child-detail-diet{font-size:15px;color:rgba(255,255,255,0.7);margin-top:4px;font-weight:600}
 .child-detail-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px}
 .child-detail-stat{border-radius:12px;padding:14px 8px;text-align:center}
 .child-detail-stat.val{font-size:36px;font-weight:700;line-height:1}
 .child-detail-stat.lbl{font-size:13px;font-weight:700;margin-top:6px;text-transform:uppercase;letter-spacing:0.3px}
-.child-detail-sub{font-size:14px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px}
-.child-detail-day{display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;gap:8px}
+.child-detail-sub{font-size:14px;font-weight:700;color:#ffd700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px}
+.child-detail-day{display:flex;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08);gap:8px}
 .child-detail-day:last-child{border-bottom:none}
-.child-detail-day-date{font-size:14px;font-weight:700;color:#1a1a2e;width:58px;flex-shrink:0}
-.child-detail-day-name{font-size:13px;color:#666;width:36px;flex-shrink:0}
+.child-detail-day-date{font-size:14px;font-weight:700;color:white;width:58px;flex-shrink:0}
+.child-detail-day-name{font-size:13px;color:rgba(255,255,255,0.5);width:36px;flex-shrink:0}
 .child-detail-day-badges{display:flex;gap:5px;flex-wrap:wrap}
 .child-detail-day-badge{font-size:12px;font-weight:700;padding:3px 10px;border-radius:10px}
 .child-detail-close{width:100%;padding:10px;border:none;border-radius:8px;background:#1a1a2e;color:white;font-size:14px;font-weight:600;cursor:pointer;margin-top:12px;font-family:inherit}
 .child-detail-close:active{transform:scale(0.97)}
-.deleghe-box{background:#f0f0f5;border-radius:12px;padding:14px;margin-top:14px}
-.deleghe-box-title{font-size:15px;font-weight:700;color:#444;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.deleghe-box{background:rgba(255,255,255,0.06);border-radius:12px;padding:14px;margin-top:14px}
+.deleghe-box-title{font-size:15px;font-weight:700;color:rgba(255,255,255,0.8);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
 .deleghe-box-title svg{flex-shrink:0}
-.deleghe-item{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #e0e0e5}
+.deleghe-item{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08)}
 .deleghe-item:last-child{border-bottom:none}
-.deleghe-item-name{flex:1;font-size:15px;color:#333;font-weight:600}
-.deleghe-item-remove{width:22px;height:22px;border-radius:50%;border:none;background:#e0e0e5;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#888;font-size:14px;font-weight:600;font-family:inherit;transition:all 0.15s;padding:0}
+.deleghe-item-name{flex:1;font-size:15px;color:rgba(255,255,255,0.9);font-weight:600}
+.deleghe-item-remove{width:22px;height:22px;border-radius:50%;border:none;background:rgba(255,255,255,0.1);cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.5);font-size:14px;font-weight:600;font-family:inherit;transition:all 0.15s;padding:0}
 .deleghe-item-remove:hover{background:#dc3545;color:white}
 .deleghe-add{display:flex;gap:6px;margin-top:8px}
-.deleghe-add input{flex:1;padding:8px 12px;border:2px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;outline:none}
+.deleghe-add input{flex:1;padding:8px 12px;border:2px solid rgba(255,255,255,0.2);border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:rgba(255,255,255,0.1);color:white}
+.deleghe-add input::placeholder{color:rgba(255,255,255,0.4)}
 .deleghe-add input:focus{border-color:#007bff}
-.deleghe-add button{padding:8px 14px;border:none;border-radius:8px;background:#1a1a2e;color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all 0.15s}
-.deleghe-add button:hover{background:#2a2a4e}
+.deleghe-add button{padding:8px 14px;border:none;border-radius:8px;background:rgba(255,255,255,0.15);color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all 0.15s}
+.deleghe-add button:hover{background:rgba(255,255,255,0.25)}
 .deleghe-add button:active{transform:scale(0.97)}
-.deleghe-empty{font-size:14px;color:#999;font-style:italic;text-align:center;padding:6px 0}
+.deleghe-empty{font-size:14px;color:rgba(255,255,255,0.4);font-style:italic;text-align:center;padding:6px 0}
 .contatto-call-btn{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:8px;background:#007bff;color:white;font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;transition:all 0.15s;cursor:pointer}
 .contatto-call-btn:hover{background:#0056b3}
 .contatto-call-btn:active{transform:scale(0.97)}
 .contatto-add{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
-.contatto-add input{flex:1;min-width:80px;padding:8px 12px;border:2px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;outline:none}
+.contatto-add input{flex:1;min-width:80px;padding:8px 12px;border:2px solid rgba(255,255,255,0.2);border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:rgba(255,255,255,0.1);color:white}
+.contatto-add input::placeholder{color:rgba(255,255,255,0.4)}
 .contatto-add input:focus{border-color:#007bff}
-.contatto-add button{padding:8px 14px;border:none;border-radius:8px;background:#1a1a2e;color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all 0.15s}
-.contatto-add button:hover{background:#2a2a4e}
+.contatto-add button{padding:8px 14px;border:none;border-radius:8px;background:rgba(255,255,255,0.15);color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all 0.15s}
+.contatto-add button:hover{background:rgba(255,255,255,0.25)}
 .contatto-add button:active{transform:scale(0.97)}
 .sort-bar{display:flex;align-items:center;gap:6px;padding:10px 14px;margin-bottom:10px;flex-wrap:wrap;background:#e8e4f0;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
 .sort-label{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.3px;margin-right:2px}
@@ -211,8 +213,8 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .class-locked-overlay{position:relative;pointer-events:none;opacity:0.5}
 .class-locked-overlay .class-tabs,.class-locked-overlay .lock-bypass{pointer-events:auto;opacity:1}
 
-.edit-name-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border:1.5px solid #ccc;border-radius:8px;background:white;font-size:13px;font-weight:600;color:#555;cursor:pointer;font-family:inherit;transition:all 0.15s;white-space:nowrap}
-.edit-name-btn:hover{border-color:#007bff;color:#007bff;background:#f0f6ff}
+.edit-name-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border:1.5px solid rgba(255,255,255,0.2);border-radius:8px;background:rgba(255,255,255,0.1);font-size:13px;font-weight:600;color:white;cursor:pointer;font-family:inherit;transition:all 0.15s;white-space:nowrap}
+.edit-name-btn:hover{border-color:#007bff;color:#007bff;background:rgba(0,123,255,0.15)}
 .edit-name-btn:active{transform:scale(0.97)}
 .child-detail-name-row{display:flex;align-items:center;gap:8px}
 .stat-card{background:white;border-radius:12px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,0.08);display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
@@ -966,7 +968,7 @@ function renderChildDetail(idx){
   html+='<div class="child-detail-avatar '+gClassD+'" '+(locked?'':'onclick="App.toggleGender('+idx+')" ')+'title="'+(locked?'':'Clicca per cambiare genere')+'">'+getInitials(childName)+'</div>';
   html+='<div style="flex:1;min-width:0"><div class="child-detail-name-row"><span class="child-detail-name">'+esc(childName)+'</span>';
   var gLabel=getGender(idx)==='f'?'Femmina':'Maschio';
-  if(!locked){html+='<button class="edit-name-btn" onclick="App.toggleGender('+idx+')" title="Cambia genere">'+(getGender(idx)==='f'?'👧':'👦')+' '+gLabel+'</button>';html+='<button class="edit-name-btn" onclick="App.editChildFromDetail('+idx+')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Modifica</button>';}else{html+='<span style="font-size:12px;color:#888">'+(getGender(idx)==='f'?'👧':'👦')+' '+gLabel+'</span>';}
+  if(!locked){html+='<button class="edit-name-btn" onclick="App.toggleGender('+idx+')" title="Cambia genere">'+(getGender(idx)==='f'?'👧':'👦')+' '+gLabel+'</button>';html+='<button class="edit-name-btn" onclick="App.editChildFromDetail('+idx+')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Modifica</button>';}else{html+='<span style="font-size:12px;color:rgba(255,255,255,0.5)">'+(getGender(idx)==='f'?'👧':'👦')+' '+gLabel+'</span>';}
   html+='</div>';
   if(hasDiet){html+='<div class="child-detail-diet">🍽 '+esc(dietInfo)+(childDiets[idx].note?' - '+esc(childDiets[idx].note):'')+'</div>';}
   var badgeAge=childAge[idx]||'';
@@ -985,12 +987,12 @@ function renderChildDetail(idx){
   var pctP=Math.round(stats.presenze/schoolDaysSoFar*100);
   var pctPre=Math.round(stats.pre/schoolDaysSoFar*100);
   var pctPost=Math.round(stats.post/schoolDaysSoFar*100);
-  html+='<div class="child-detail-stat" style="background:#d4edda"><div class="val" style="color:#28a745">'+stats.presenze+'</div><div class="lbl" style="color:#155724">Presenze</div><div style="font-size:13px;font-weight:700;color:#28a745;margin-top:2px">'+pctP+'%</div></div>';
-  html+='<div class="child-detail-stat" style="background:#fff3cd"><div class="val" style="color:#e67e00">'+stats.pre+'</div><div class="lbl" style="color:#856404">Pre</div><div style="font-size:13px;font-weight:700;color:#e67e00;margin-top:2px">'+pctPre+'%</div></div>';
-  html+='<div class="child-detail-stat" style="background:#cce5ff"><div class="val" style="color:#007bff">'+stats.post+'</div><div class="lbl" style="color:#004085">Post</div><div style="font-size:13px;font-weight:700;color:#007bff;margin-top:2px">'+pctPost+'%</div></div>';
+  html+='<div class="child-detail-stat" style="background:rgba(40,167,69,0.15)"><div class="val" style="color:#5dff8e">'+stats.presenze+'</div><div class="lbl" style="color:#5dff8e">Presenze</div><div style="font-size:13px;font-weight:700;color:#5dff8e;margin-top:2px">'+pctP+'%</div></div>';
+  html+='<div class="child-detail-stat" style="background:rgba(230,126,0,0.15)"><div class="val" style="color:#ffb74d">'+stats.pre+'</div><div class="lbl" style="color:#ffb74d">Pre</div><div style="font-size:13px;font-weight:700;color:#ffb74d;margin-top:2px">'+pctPre+'%</div></div>';
+  html+='<div class="child-detail-stat" style="background:rgba(0,123,255,0.15)"><div class="val" style="color:#64b5f6">'+stats.post+'</div><div class="lbl" style="color:#64b5f6">Post</div><div style="font-size:13px;font-weight:700;color:#64b5f6;margin-top:2px">'+pctPost+'%</div></div>';
   html+='</div>';
 
-  html+='<div style="text-align:center;font-size:11px;color:#888;margin-bottom:14px">'+esc(monthLabel)+' · su '+schoolDaysSoFar+' giorni scolastici</div>';
+  html+='<div style="text-align:center;font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:14px">'+esc(monthLabel)+' · su '+schoolDaysSoFar+' giorni scolastici</div>';
 
   if(stats.days.length>0){
     html+='<div class="child-detail-sub">Giorni con registrazione</div>';
@@ -1002,20 +1004,20 @@ function renderChildDetail(idx){
       html+='<span class="child-detail-day-date">'+day.day+' '+MONTHS_SHORT[cm]+'</span>';
       html+='<span class="child-detail-day-name">'+dayName+'</span>';
       html+='<div class="child-detail-day-badges">';
-      if(day.p){html+='<span class="child-detail-day-badge" style="background:#d4edda;color:#155724">Presente</span>';}
-      else{html+='<span class="child-detail-day-badge" style="background:#f8d7da;color:#721c24">Assente</span>';}
-      if(day.pre){html+='<span class="child-detail-day-badge" style="background:#fff3cd;color:#856404">Pre</span>';}
-      if(day.post){html+='<span class="child-detail-day-badge" style="background:#cce5ff;color:#004085">Post</span>';}
+      if(day.p){html+='<span class="child-detail-day-badge" style="background:rgba(40,167,69,0.2);color:#5dff8e">Presente</span>';}
+      else{html+='<span class="child-detail-day-badge" style="background:rgba(220,53,69,0.2);color:#ff6b7a">Assente</span>';}
+      if(day.pre){html+='<span class="child-detail-day-badge" style="background:rgba(230,126,0,0.2);color:#ffb74d">Pre</span>';}
+      if(day.post){html+='<span class="child-detail-day-badge" style="background:rgba(0,123,255,0.2);color:#64b5f6">Post</span>';}
       html+='</div></div>';
     }
   }else{
-    html+='<div style="text-align:center;padding:20px;color:#aaa;font-size:13px">Nessuna registrazione per questo mese</div>';
+    html+='<div style="text-align:center;padding:20px;color:rgba(255,255,255,0.4);font-size:13px">Nessuna registrazione per questo mese</div>';
   }
 
   // Deleghe box
   var deleghe=childDeleghe[idx]||[];
   html+='<div class="deleghe-box">';
-  html+='<div class="deleghe-box-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Deleghe</div>';
+  html+='<div class="deleghe-box-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Deleghe</div>';
   if(deleghe.length>0){
     for(var di2=0;di2<deleghe.length;di2++){
       html+='<div class="deleghe-item">';
@@ -1031,8 +1033,8 @@ function renderChildDetail(idx){
 
   // Contatti box
   var contatti=childContatti[idx]||[];
-  html+='<div class="deleghe-box" style="background:#e8f4fd">';
-  html+='<div class="deleghe-box-title" style="color:#004085"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#004085" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg> Contatti</div>';
+  html+='<div class="deleghe-box" style="background:rgba(0,123,255,0.08)">';
+  html+='<div class="deleghe-box-title" style="color:#64b5f6"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64b5f6" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg> Contatti</div>';
   if(contatti.length>0){
     for(var ci=0;ci<contatti.length;ci++){
       html+='<div class="deleghe-item">';
@@ -1051,14 +1053,14 @@ function renderChildDetail(idx){
   var childNote=childNotes[idx]||'';
   var childNoteDisabled=!currentUser||locked;
   var childNotePlaceholder=!currentUser?'Effettua il login per salvare le note':locked?'Sblocca la classe per scrivere note':'Scrivi una nota per questo bambino...';
-  html+='<div class="deleghe-box" style="background:#fff8e1">';
-  html+='<div class="deleghe-box-title" style="color:#f57f17"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f57f17" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Note</div>';
-  if(!currentUser){html+='<div style="font-size:10px;color:#dc3545;font-weight:600;margin-bottom:6px;text-align:center">⚠ Le note si salvano solo col login</div>';}
-  html+='<textarea id="childNoteInput" placeholder="'+childNotePlaceholder+'" style="width:100%;min-height:48px;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;outline:none;color:#333;background:'+(childNoteDisabled?'#f5f5f5':'white')+'" oninput="App.updateChildNote('+idx+',this.value)" '+(childNoteDisabled?'disabled':'')+'>'+esc(childNote)+'</textarea>';
+  html+='<div class="deleghe-box" style="background:rgba(255,193,7,0.08)">';
+  html+='<div class="deleghe-box-title" style="color:#ffd54f"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffd54f" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Note</div>';
+  if(!currentUser){html+='<div style="font-size:10px;color:#ff6b7a;font-weight:600;margin-bottom:6px;text-align:center">⚠ Le note si salvano solo col login</div>';}
+  html+='<textarea id="childNoteInput" placeholder="'+childNotePlaceholder+'" style="width:100%;min-height:48px;padding:8px 10px;border:1px solid rgba(255,255,255,0.2);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;outline:none;color:white;background:'+(childNoteDisabled?'rgba(255,255,255,0.05)':'rgba(255,255,255,0.1)')+'" oninput="App.updateChildNote('+idx+',this.value)" '+(childNoteDisabled?'disabled':'')+'>'+esc(childNote)+'</textarea>';
   html+='</div>';
 
-  if(!locked){html+='<button class="btn btn-danger" style="width:100%;margin-top:8px;justify-content:center" onclick="App.removeChild('+idx+')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Rimuovi Bambino</button>';}
-  html+='<button class="child-detail-close" onclick="App.closeChildDetail()">Chiudi</button>';
+  if(!locked){html+='<button class="btn btn-danger" style="width:100%;margin-top:8px;justify-content:center;background:rgba(220,53,69,0.15);border-color:rgba(220,53,69,0.4);color:#ff6b7a" onclick="App.removeChild('+idx+')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Rimuovi Bambino</button>';}
+  html+='<button class="child-detail-close" style="background:white;color:#1a1a2e" onclick="App.closeChildDetail()">Chiudi</button>';
   html+='</div></div>';
   return html;
 }
