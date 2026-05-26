@@ -981,26 +981,28 @@ function handleLogin(){
       var uid=currentUser.uid;
       saveCurrentClassData();
       var logoutData={classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
-      // Salva su Firestore e ASPETTA il completamento prima di fare logout
+      // Salva in localStorage SUBITO come backup
+      try{localStorage.setItem('rp_data_'+uid,JSON.stringify({classes:logoutData.classes,currentClassId:logoutData.currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
+      var logoutDone=false;
+      function doLogout(){
+        if(logoutDone) return;
+        logoutDone=true;
+        try{auth.signOut();}catch(e){}
+        setTimeout(function(){window.location.reload();},500);
+      }
       if(db&&uid){
         syncStatus='saving';renderSyncBar();
         db.collection('users').doc(uid).set(logoutData).then(function(){
-          console.log('[LOGOUT] Firestore save SUCCESS, proceeding with logout');
-          // NON pulire localStorage - è il backup!
-          try{auth.signOut();}catch(e){}
-          setTimeout(function(){window.location.reload();},500);
+          console.log('[LOGOUT] Firestore save SUCCESS');
+          doLogout();
         }).catch(function(err){
           console.error('[LOGOUT] Firestore save FAILED:',err);
-          // Salva comunque in localStorage come backup
-          try{localStorage.setItem('rp_data_'+uid,JSON.stringify({classes:logoutData.classes,currentClassId:logoutData.currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e2){}
-          try{auth.signOut();}catch(e){}
-          setTimeout(function(){window.location.reload();},500);
+          doLogout();
         });
+        // Timeout: se il salvataggio non finisce entro 3 secondi, fai logout comunque
+        setTimeout(function(){doLogout();},3000);
       }else{
-        // Nessun db, salva in localStorage e procedi
-        try{localStorage.setItem('rp_data_'+uid,JSON.stringify({classes:logoutData.classes,currentClassId:logoutData.currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
-        try{auth.signOut();}catch(e){}
-        setTimeout(function(){window.location.reload();},500);
+        doLogout();
       }
     }
   }else{
