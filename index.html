@@ -64,7 +64,13 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .roster-header{display:grid;grid-template-columns:1fr 30px 42px 48px 48px 48px;align-items:center;padding:10px 10px;background:#fafafa;border-bottom:1px solid #eee;gap:3px}
 .roster-header span{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.3px}
 .roster-col{display:flex;flex-direction:column;align-items:center;gap:4px}
-.roster-col label{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;cursor:pointer}
+.roster-col label{font-size:11px;font-weight:700;text-transform:uppercase;cursor:pointer;letter-spacing:0.3px}
+.label-name{color:#5b9bd5}
+.label-age{color:#e67e00}
+.label-diet{color:#9c27b0}
+.label-presenza{color:#28a745}
+.label-pre{color:#e67e00}
+.label-post{color:#007bff}
 .child-row{display:grid;grid-template-columns:1fr 30px 42px 48px 48px 48px;align-items:center;padding:8px 10px;border-bottom:1px solid #f0f0f0;gap:3px;transition:background 0.1s}
 .child-row:last-child{border-bottom:none}
 .child-info{display:flex;align-items:center;min-width:0}
@@ -599,12 +605,12 @@ function render(){
   html+='</div>';
 
   html+='<div class="roster"><div class="roster-header">';
-  html+='<span>COGNOME E NOME</span>';
-  html+='<div class="roster-col"><label>Età</label></div>';
-  html+='<div class="roster-col"><label>Dieta</label></div>';
-  html+='<div class="roster-col"><label>Presenza</label><input type="checkbox" class="select-all-check" '+(totalPresenze===children.length&&children.length>0?'checked':'')+' onchange="App.selectAllPresenza(this.checked)"/></div>';
-  html+='<div class="roster-col"><label>Pre</label><input type="checkbox" class="select-all-check" '+(totalPre===children.length&&children.length>0?'checked':'')+' onchange="App.selectAllPre(this.checked)"/></div>';
-  html+='<div class="roster-col"><label>Post</label><input type="checkbox" class="select-all-check" '+(totalPost===children.length&&children.length>0?'checked':'')+' onchange="App.selectAllPost(this.checked)"/></div>';
+  html+='<span style="color:#5b9bd5">COGNOME E NOME</span>';
+  html+='<div class="roster-col"><label class="label-age">Età</label></div>';
+  html+='<div class="roster-col"><label class="label-diet">Dieta</label></div>';
+  html+='<div class="roster-col"><label class="label-presenza">Presenza</label><input type="checkbox" class="select-all-check" '+(totalPresenze===children.length&&children.length>0?'checked':'')+' onchange="App.selectAllPresenza(this.checked)"/></div>';
+  html+='<div class="roster-col"><label class="label-pre">Pre</label><input type="checkbox" class="select-all-check" '+(totalPre===children.length&&children.length>0?'checked':'')+' onchange="App.selectAllPre(this.checked)"/></div>';
+  html+='<div class="roster-col"><label class="label-post">Post</label><input type="checkbox" class="select-all-check" '+(totalPost===children.length&&children.length>0?'checked':'')+' onchange="App.selectAllPost(this.checked)"/></div>';
   html+='</div>';
 
   var filtered=getFilteredChildren();
