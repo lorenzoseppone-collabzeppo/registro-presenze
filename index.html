@@ -266,6 +266,8 @@ var showDietModal = -1;
 var selectedChild = -1;
 
 var dateData = {};
+var holidays = {};
+var dayNotes = {};
 
 var DAYS = ['Domenica','Luned\u00ec','Marted\u00ec','Mercoled\u00ec','Gioved\u00ec','Venerd\u00ec','Sabato'];
 var MONTHS = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
@@ -330,6 +332,9 @@ function getGender(idx){
 function getGenderClass(idx){var g=getGender(idx);return g==='f'?'female':'male';}
 
 function getCurrentDateKey(){ return dateToKey(currentDate); }
+function isWeekend(){ var d=currentDate.getDay(); return d===0||d===6; }
+function isHoliday(){ var key=getCurrentDateKey(); return !!holidays[key]; }
+function isDayOff(){ return isWeekend()||isHoliday(); }
 
 function saveCurrentDateData(){
   var key=getCurrentDateKey();
@@ -353,6 +358,7 @@ function getStorageKey(){
 function resetAllData(){
   children=['Sofia Rossi','Leonardo Bianchi','Aurora Romano','Tommaso Ferrari','Giulia Esposito','Mattia Ricci','Alice Marino','Nicola Parisi','Elisa Benedetti','Simone Rinaldi','Beatrice Costa','Davide Moretti','Martina Barbieri','Federico Rizzo','Chiara Lombardi','Gabriele Gallo','Ginevra Conti','Alessandro De Luca','Lorenzo Greco','Emma Bruno','Pietro Colombo','Viola Fontana','Marco Villa','Camilla Russo','Edoardo Messina','Anna Serra','Filippo Mazza','Bianca Pellegrini','Luca Marchetti','Giorgia Ferretti'];
   dateData={};presenze={};pre={};post={};childDiets={};childGender={};childDeleghe={};childContatti={};childAge={};
+  holidays={};dayNotes={};
   className='Chioccioline';schoolName='Scuola dell\'Infanzia di Bonirola';teacher1='';teacher2='';
   currentDate=new Date();
   search='';selectedChild=-1;showDietModal=-1;
@@ -361,7 +367,7 @@ function resetAllData(){
 function saveState(){
   saveCurrentDateData();
   if(currentUser){
-    try{localStorage.setItem(getStorageKey(),JSON.stringify({children:children,dateData:dateData,childDiets:childDiets,childGender:childGender,childDeleghe:childDeleghe,childContatti:childContatti,childLastModified:childLastModified,childAge:childAge,sortMode:sortMode,currentDate:dateToInput(currentDate),className:className,schoolName:schoolName,teacher1:teacher1,teacher2:teacher2}));}catch(e){}
+    try{localStorage.setItem(getStorageKey(),JSON.stringify({children:children,dateData:dateData,childDiets:childDiets,childGender:childGender,childDeleghe:childDeleghe,childContatti:childContatti,childLastModified:childLastModified,childAge:childAge,sortMode:sortMode,currentDate:dateToInput(currentDate),className:className,schoolName:schoolName,teacher1:teacher1,teacher2:teacher2,holidays:holidays,dayNotes:dayNotes}));}catch(e){}
     saveToFirestore();
   }
 }
@@ -390,6 +396,8 @@ function loadState(){
       if(d.schoolName) schoolName=d.schoolName;
       if(d.teacher1!==undefined) teacher1=d.teacher1;
       if(d.teacher2!==undefined) teacher2=d.teacher2;
+      if(d.holidays) holidays=d.holidays;
+      if(d.dayNotes) dayNotes=d.dayNotes;
     }
   }catch(e){}
   var key=getCurrentDateKey();
@@ -406,7 +414,7 @@ function saveToFirestore(){
 }
 function doSaveToFirestore(){
   if(!currentUser||!db) return;
-  var data={children:children,className:className,schoolName:schoolName,teacher1:teacher1,teacher2:teacher2,dateData:dateData,childDiets:childDiets,childGender:childGender,childDeleghe:childDeleghe,childContatti:childContatti,childLastModified:childLastModified,childAge:childAge,sortMode:sortMode,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+  var data={children:children,className:className,schoolName:schoolName,teacher1:teacher1,teacher2:teacher2,holidays:holidays,dayNotes:dayNotes,dateData:dateData,childDiets:childDiets,childGender:childGender,childDeleghe:childDeleghe,childContatti:childContatti,childLastModified:childLastModified,childAge:childAge,sortMode:sortMode,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
   db.collection('users').doc(currentUser.uid).set(data,{merge:true})
     .then(function(){syncStatus='synced';renderSyncBar();setTimeout(function(){if(syncStatus==='synced'){syncStatus='idle';renderSyncBar();}},3000);})
     .catch(function(err){console.error('Firestore save error:',err);syncStatus='error';renderSyncBar();});
@@ -424,6 +432,8 @@ function loadFromFirestore(uid){
       if(d.schoolName) schoolName=d.schoolName;
       if(d.teacher1!==undefined) teacher1=d.teacher1;
       if(d.teacher2!==undefined) teacher2=d.teacher2;
+      if(d.holidays) holidays=d.holidays;
+      if(d.dayNotes) dayNotes=d.dayNotes;
         if(d.dateData) dateData=d.dateData;
         if(d.childDiets) childDiets=d.childDiets;
         if(d.childGender) childGender=d.childGender;
@@ -435,7 +445,7 @@ function loadFromFirestore(uid){
         var key=getCurrentDateKey();var dd=dateData[key];
         if(dd){presenze=dd.presenze||{};pre=dd.pre||{};post=dd.post||{};}
         else{presenze={};pre={};post={};}
-        try{localStorage.setItem(getStorageKey(),JSON.stringify({children:children,dateData:dateData,childDiets:childDiets,childGender:childGender,childDeleghe:childDeleghe,childContatti:childContatti,childLastModified:childLastModified,childAge:childAge,sortMode:sortMode,currentDate:dateToInput(currentDate),className:className,schoolName:schoolName,teacher1:teacher1,teacher2:teacher2}));}catch(e){}
+        try{localStorage.setItem(getStorageKey(),JSON.stringify({children:children,dateData:dateData,childDiets:childDiets,childGender:childGender,childDeleghe:childDeleghe,childContatti:childContatti,childLastModified:childLastModified,childAge:childAge,sortMode:sortMode,currentDate:dateToInput(currentDate),className:className,schoolName:schoolName,teacher1:teacher1,teacher2:teacher2,holidays:holidays,dayNotes:dayNotes}));}catch(e){}
       }else{
         try{localStorage.removeItem(getStorageKey());}catch(e){}
       }
@@ -580,11 +590,24 @@ function render(){
   html+='<button class="arrow-btn" onclick="App.nextDate()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>';
   html+='</div><div class="date-full">'+esc(dateToFull(currentDate))+'</div>';
   html+='<input type="date" id="datePicker" value="'+dateToInput(currentDate)+'" min="2020-01-01" max="2099-12-31" onchange="App.setDate(this.value)" style="opacity:0;position:absolute;pointer-events:none"/>';
+  // Weekend/Holiday indicator
+  var dayOff=isDayOff();
+  if(isWeekend()){html+='<div style="text-align:center;padding:6px 10px;background:#f8d7da;color:#721c24;border-radius:8px;font-size:12px;font-weight:600;margin:6px 0">Weekend \u2014 Non scolastico</div>';}
+  else if(isHoliday()){html+='<div style="text-align:center;padding:6px 10px;background:#fff3cd;color:#856404;border-radius:8px;font-size:12px;font-weight:600;margin:6px 0">\ud83c\udf1f Festivo \u2014 '+esc(holidays[getCurrentDateKey()]||'')+'</div>';}
+  // Holiday toggle button (only on weekdays)
+  if(!isWeekend()){
+    if(isHoliday()){html+='<button class="btn" style="width:100%;margin:4px 0" onclick="App.removeHoliday()">Rimuovi festivo</button>';}
+    else{html+='<button class="btn" style="width:100%;margin:4px 0" onclick="App.markHoliday()">Segna come festivo</button>';}
+  }
   html+='<div class="badge-row">';
   html+='<span class="badge badge-green"><span class="dot"></span>'+totalPresenze+' presenze</span>';
   html+='<span class="badge badge-orange"><span class="dot"></span>'+totalPre+' pre</span>';
   html+='<span class="badge badge-blue"><span class="dot"></span>'+totalPost+' post</span>';
-  html+='</div></div>';
+  html+='</div>';
+  // Daily notes
+  var todayNote=dayNotes[getCurrentDateKey()]||'';
+  html+='<div style="margin-top:8px"><textarea id="dayNoteInput" placeholder="Note del giorno..." style="width:100%;min-height:36px;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;font-family:inherit;resize:vertical;outline:none;color:#333;background:'+(dayOff?'#f5f5f5':'white')+'" oninput="App.updateDayNote(this.value)" '+(dayOff?'disabled':'')+'>'+esc(todayNote)+'</textarea></div>';
+  html+='</div>';
 
   html+='<div class="card"><div class="card-label">RICERCA BAMBINO</div>';
   html+='<div class="search-box"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#aaa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" id="searchInput" placeholder="Cerca per nome o cognome..." value="'+esc(search)+'" oninput="App.setSearchLive(this.value)"/>';
@@ -604,14 +627,16 @@ function render(){
   html+='<button class="sort-btn '+(sortMode==='age-desc'?'active':'')+'" onclick="App.setSort(\'age-desc\')" title="Età alta→bassa">🎂↓</button>';
   html+='</div>';
 
+  var dayOff=isDayOff();
   html+='<div class="roster"><div class="roster-header">';
   html+='<span style="color:#5b9bd5">COGNOME E NOME</span>';
   html+='<div class="roster-col"><label class="label-age">Età</label></div>';
   html+='<div class="roster-col"><label class="label-diet">Dieta</label></div>';
-  html+='<div class="roster-col"><label class="label-presenza">Presenza</label><input type="checkbox" class="select-all-check" '+(totalPresenze===children.length&&children.length>0?'checked':'')+' onchange="App.selectAllPresenza(this.checked)"/></div>';
-  html+='<div class="roster-col"><label class="label-pre">Pre</label><input type="checkbox" class="select-all-check" '+(totalPre===children.length&&children.length>0?'checked':'')+' onchange="App.selectAllPre(this.checked)"/></div>';
-  html+='<div class="roster-col"><label class="label-post">Post</label><input type="checkbox" class="select-all-check" '+(totalPost===children.length&&children.length>0?'checked':'')+' onchange="App.selectAllPost(this.checked)"/></div>';
+  html+='<div class="roster-col"><label class="label-presenza">Presenza</label>'+(dayOff?'':'<input type="checkbox" class="select-all-check" '+(totalPresenze===children.length&&children.length>0?'checked':'')+' onchange="App.selectAllPresenza(this.checked)"/>')+'</div>';
+  html+='<div class="roster-col"><label class="label-pre">Pre</label>'+(dayOff?'':'<input type="checkbox" class="select-all-check" '+(totalPre===children.length&&children.length>0?'checked':'')+' onchange="App.selectAllPre(this.checked)"/>')+'</div>';
+  html+='<div class="roster-col"><label class="label-post">Post</label>'+(dayOff?'':'<input type="checkbox" class="select-all-check" '+(totalPost===children.length&&children.length>0?'checked':'')+' onchange="App.selectAllPost(this.checked)"/>')+'</div>';
   html+='</div>';
+  if(dayOff){html+='<div style="text-align:center;padding:20px;color:#999;font-size:13px;font-style:italic">'+(isWeekend()?'Weekend \u2014 nessuna presenza':'Giorno festivo \u2014 nessuna presenza')+'</div>';}
 
   var filtered=getFilteredChildren();
   for(var fi=0;fi<filtered.length;fi++){
@@ -629,9 +654,15 @@ function render(){
     var age=childAge[idx]||'';
     html+='<div class="age-cell"><div class="age-circle '+(age?'has-age':'')+'" onclick="App.editAge('+idx+')" title="Clicca per inserire età">'+(age?esc(String(age)):'-')+'</div></div>';
     html+='<div class="diet-cell"><button class="diet-btn '+(hasDiet?'has-diet':'')+'" onclick="App.openDietModal('+idx+')" title="Dieta">\ud83c\udf7d</button></div>';
-    html+='<div class="check-cell"><input type="checkbox" '+(hasKey(presenze,idx)?'checked':'')+' onchange="App.togglePresenza('+idx+')"/></div>';
-    html+='<div class="check-cell"><button class="pre-btn '+(hasKey(pre,idx)?'active':'')+'" onclick="App.togglePre('+idx+')">PRE</button></div>';
-    html+='<div class="check-cell"><button class="post-btn '+(hasKey(post,idx)?'active':'')+'" onclick="App.togglePost('+idx+')">POST</button></div>';
+    if(dayOff){
+      html+='<div class="check-cell"><input type="checkbox" disabled style="opacity:0.3"/></div>';
+      html+='<div class="check-cell"><button class="pre-btn" disabled style="opacity:0.3;cursor:not-allowed">PRE</button></div>';
+      html+='<div class="check-cell"><button class="post-btn" disabled style="opacity:0.3;cursor:not-allowed">POST</button></div>';
+    }else{
+      html+='<div class="check-cell"><input type="checkbox" '+(hasKey(presenze,idx)?'checked':'')+' onchange="App.togglePresenza('+idx+')"/></div>';
+      html+='<div class="check-cell"><button class="pre-btn '+(hasKey(pre,idx)?'active':'')+'" onclick="App.togglePre('+idx+')">PRE</button></div>';
+      html+='<div class="check-cell"><button class="post-btn '+(hasKey(post,idx)?'active':'')+'" onclick="App.togglePost('+idx+')">POST</button></div>';
+    }
     html+='</div>';
   }
   html+='</div>';
@@ -843,6 +874,9 @@ window.App={
   },
   setSort:function(mode){sortMode=mode;saveState();render();},
   editAge:function(i){var val=prompt('Inserisci età di '+children[i]+':',childAge[i]||'');if(val!==null){if(val.trim()===''){delete childAge[i];}else{childAge[i]=val.trim();}saveState();render();}},
+  markHoliday:function(){var name=prompt('Nome festività (es. Natale, Pasqua...):','');if(name!==null){holidays[getCurrentDateKey()]=name.trim();saveState();render();}},
+  removeHoliday:function(){delete holidays[getCurrentDateKey()];saveState();render();},
+  updateDayNote:function(val){dayNotes[getCurrentDateKey()]=val;saveState();},
   togglePresenza:function(i){if(hasKey(presenze,i))delete presenze[i];else presenze[i]=true;saveState();render();},
   togglePre:function(i){if(hasKey(pre,i))delete pre[i];else pre[i]=true;saveState();render();},
   togglePost:function(i){if(hasKey(post,i))delete post[i];else post[i]=true;saveState();render();},
