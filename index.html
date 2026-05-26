@@ -583,6 +583,7 @@ function render(){
   html+='<button class="btn btn-danger" onclick="App.resetMonth()">Azzera mese</button>';
   html+='<button class="btn" onclick="App.viewMonth()">Mese</button>';
   html+='<button class="btn btn-danger-fill" onclick="App.exportPDF()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> PDF</button>';
+  html+='<button class="btn" style="background:#e67e00;color:white;border-color:#e67e00" onclick="App.exportPDFPrePost()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> PDF PRE/POST</button>';
   html+='</div>';
   html+='<button class="btn btn-success-fill btn-full" onclick="App.share()"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> Condividi</button>';
   html+='</div>';
@@ -1073,6 +1074,225 @@ window.App={
 
     // Save
     var fileName='Riepilogo_'+className.replace(/\s+/g,'_')+'_'+MONTHS[cm]+'_'+cy+'.pdf';
+    doc.save(fileName);
+  },
+  exportPDFPrePost:function(){
+    saveCurrentDateData();
+    var jsPDF=window.jspdf.jsPDF;
+    var doc=new jsPDF('p','mm','a4');
+    var pageW=doc.internal.pageSize.getWidth();
+    var pageH=doc.internal.pageSize.getHeight();
+    var cm=currentDate.getMonth();
+    var cy=currentDate.getFullYear();
+    var daysInMonth=new Date(cy,cm+1,0).getDate();
+    var monthLabel=MONTHS[cm]+' '+cy;
+    var dateKey=getCurrentDateKey();
+
+    // Count pre/post per child across the whole month
+    var mPre=[];var mPost=[];var preDays=[];var postDays=[];
+    for(var mi=0;mi<children.length;mi++){mPre[mi]=0;mPost[mi]=0;preDays[mi]=[];postDays[mi]=[];}
+
+    for(var d=1;d<=daysInMonth;d++){
+      var dKey=cy+'-'+String(cm+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+      var dd=dateData[dKey];
+      if(dd){
+        for(var ci=0;ci<children.length;ci++){
+          if(dd.pre&&dd.pre[ci]){mPre[ci]++;preDays[ci].push(d);}
+          if(dd.post&&dd.post[ci]){mPost[ci]++;postDays[ci].push(d);}
+        }
+      }
+    }
+    // Also include current date (might not be in dateData yet)
+    for(var ci2=0;ci2<children.length;ci2++){
+      if(hasKey(pre,ci2)){mPre[ci2]++;preDays[ci2].push(currentDate.getDate());}
+      if(hasKey(post,ci2)){mPost[ci2]++;postDays[ci2].push(currentDate.getDate());}
+    }
+
+    // Count totals
+    var totBambiniPre=0;var totBambiniPost=0;var totBambiniPrePost=0;
+    for(var ti=0;ti<children.length;ti++){
+      if(mPre[ti]>0) totBambiniPre++;
+      if(mPost[ti]>0) totBambiniPost++;
+      if(mPre[ti]>0||mPost[ti]>0) totBambiniPrePost++;
+    }
+
+    // Header - orange theme
+    doc.setFillColor(230,126,0);
+    doc.rect(0,0,pageW,28,'F');
+    doc.setTextColor(255,255,255);
+    doc.setFontSize(16);
+    doc.setFont('helvetica','bold');
+    doc.text(schoolName+' - '+className,pageW/2,10,{align:'center'});
+    doc.setFontSize(13);
+    doc.text('ELENCO PRE / POST - '+monthLabel.toUpperCase(),pageW/2,19,{align:'center'});
+    doc.setFontSize(8);
+    doc.setFont('helvetica','normal');
+    var teacherLine='';
+    if(teacher1||teacher2){teacherLine='Insegnanti: '+(teacher1||'—')+' / '+(teacher2||'—');}
+    if(teacherLine){doc.text(teacherLine,pageW/2,25,{align:'center'});}
+
+    doc.setTextColor(0,0,0);
+    var y=teacherLine?38:34;
+
+    // Warning box
+    doc.setFillColor(255,243,205);
+    doc.roundedRect(14,y,pageW-28,14,2,2,'F');
+    doc.setDrawColor(230,126,0);
+    doc.roundedRect(14,y,pageW-28,14,2,2,'S');
+    doc.setFontSize(9);
+    doc.setFont('helvetica','bold');
+    doc.setTextColor(133,100,4);
+    doc.text('ATTENZIONE: Anche 1 solo Pre o Post nel mese comporta il pagamento della retta aggiuntiva',pageW/2,y+9,{align:'center'});
+
+    y+=20;
+
+    // Summary badges
+    doc.setFillColor(255,243,205);
+    doc.roundedRect(14,y,55,14,2,2,'F');
+    doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(133,100,4);
+    doc.text(totBambiniPre+' con Pre',41.5,y+9,{align:'center'});
+
+    doc.setFillColor(204,229,255);
+    doc.roundedRect(75,y,55,14,2,2,'F');
+    doc.setTextColor(0,64,133);
+    doc.text(totBambiniPost+' con Post',102.5,y+9,{align:'center'});
+
+    doc.setFillColor(255,230,230);
+    doc.roundedRect(136,y,55,14,2,2,'F');
+    doc.setTextColor(180,40,40);
+    doc.text(totBambiniPrePost+' da pagare',163.5,y+9,{align:'center'});
+
+    y+=22;
+
+    // Table - children who must pay (at least 1 Pre or Post)
+    var payBody=[];
+    var noBody=[];
+    for(var pi=0;pi<children.length;pi++){
+      var hasAny=mPre[pi]>0||mPost[pi]>0;
+      var ageStr=childAge[pi]||'-';
+      var preStr=mPre[pi]>0?String(mPre[pi])+' volta'+(mPre[pi]>1?'e':''):'0';
+      var postStr=mPost[pi]>0?String(mPost[pi])+' volta'+(mPost[pi]>1?'e':''):'0';
+      var preDaysStr=preDays[pi].length>0?preDays[pi].join(', '):'-';
+      var postDaysStr=postDays[pi].length>0?postDays[pi].join(', '):'-';
+      var row=[pi+1,children[pi],ageStr,preStr,preDaysStr,postStr,postDaysStr,hasAny?'SI':'NO'];
+      if(hasAny) payBody.push(row);
+      else noBody.push(row);
+    }
+
+    // Section: BAMBINI CHE DEVONO PAGARE
+    if(payBody.length>0){
+      doc.setFontSize(11);doc.setFont('helvetica','bold');doc.setTextColor(180,40,40);
+      doc.text('BAMBINI CHE DEVONO PAGARE LA RETTA AGGIUNTIVA ('+payBody.length+')',14,y);
+      y+=4;
+
+      doc.autoTable({
+        startY:y,
+        head:[['#','Bambino','Eta','Pre','Giorni Pre','Post','Giorni Post','Paga']],
+        body:payBody,
+        theme:'grid',
+        headStyles:{fillColor:[230,126,0],textColor:[255,255,255],fontStyle:'bold',fontSize:7,halign:'center'},
+        columnStyles:{
+          0:{cellWidth:7,halign:'center',fontStyle:'bold'},
+          1:{cellWidth:32},
+          2:{cellWidth:9,halign:'center'},
+          3:{cellWidth:14,halign:'center'},
+          4:{cellWidth:28,halign:'center'},
+          5:{cellWidth:14,halign:'center'},
+          6:{cellWidth:28,halign:'center'},
+          7:{cellWidth:14,halign:'center',fontStyle:'bold'}
+        },
+        bodyStyles:{fontSize:7},
+        alternateRowStyles:{fillColor:[255,248,240]},
+        didParseCell:function(data){
+          if(data.section==='body'){
+            // Highlight Paga column
+            if(data.column.index===7){
+              var raw=data.cell.raw;
+              if(raw==='SI'){data.cell.styles.textColor=[180,40,40];data.cell.styles.fontStyle='bold';data.cell.styles.fillColor=[255,220,220];}
+            }
+            // Highlight Pre count
+            if(data.column.index===3){
+              var numMatch=String(data.cell.raw).match(/^\d+/);
+              if(numMatch&&parseInt(numMatch[0])>0){data.cell.styles.textColor=[180,100,0];data.cell.styles.fontStyle='bold';}
+              else{data.cell.styles.textColor=[180,180,180];}
+            }
+            // Highlight Post count
+            if(data.column.index===5){
+              var numMatch2=String(data.cell.raw).match(/^\d+/);
+              if(numMatch2&&parseInt(numMatch2[0])>0){data.cell.styles.textColor=[0,80,180];data.cell.styles.fontStyle='bold';}
+              else{data.cell.styles.textColor=[180,180,180];}
+            }
+            // Age
+            if(data.column.index===2){
+              var ageRaw=data.cell.raw;
+              if(ageRaw&&ageRaw!=='-'){data.cell.styles.textColor=[133,100,4];data.cell.styles.fontStyle='bold';}
+            }
+            // Giorni Pre
+            if(data.column.index===4){
+              if(data.cell.raw&&data.cell.raw!=='-'){data.cell.styles.textColor=[180,100,0];data.cell.styles.fontSize=6.5;}
+            }
+            // Giorni Post
+            if(data.column.index===6){
+              if(data.cell.raw&&data.cell.raw!=='-'){data.cell.styles.textColor=[0,80,180];data.cell.styles.fontSize=6.5;}
+            }
+          }
+        }
+      });
+      y=doc.lastAutoTable.finalY+8;
+    }
+
+    // Check if we need a new page for the second section
+    if(y>pageH-40){
+      doc.addPage();
+      y=20;
+    }
+
+    // Section: BAMBINI SENZA PRE/POST
+    if(noBody.length>0){
+      doc.setFontSize(11);doc.setFont('helvetica','bold');doc.setTextColor(40,130,40);
+      doc.text('BAMBINI SENZA PRE/POST - Non pagano retta aggiuntiva ('+noBody.length+')',14,y);
+      y+=4;
+
+      doc.autoTable({
+        startY:y,
+        head:[['#','Bambino','Eta','Pre','Post','Paga']],
+        body:noBody.map(function(r){return [r[0],r[1],r[2],r[3],r[5],r[7]];}),
+        theme:'grid',
+        headStyles:{fillColor:[40,130,40],textColor:[255,255,255],fontStyle:'bold',fontSize:7,halign:'center'},
+        columnStyles:{
+          0:{cellWidth:7,halign:'center',fontStyle:'bold'},
+          1:{cellWidth:50},
+          2:{cellWidth:10,halign:'center'},
+          3:{cellWidth:18,halign:'center'},
+          4:{cellWidth:18,halign:'center'},
+          5:{cellWidth:18,halign:'center',fontStyle:'bold'}
+        },
+        bodyStyles:{fontSize:7},
+        alternateRowStyles:{fillColor:[232,245,233]},
+        didParseCell:function(data){
+          if(data.section==='body'){
+            if(data.column.index===5){
+              var raw2=data.cell.raw;
+              if(raw2==='NO'){data.cell.styles.textColor=[40,130,40];data.cell.styles.fontStyle='bold';}
+            }
+            if(data.column.index===2){
+              var ageRaw2=data.cell.raw;
+              if(ageRaw2&&ageRaw2!=='-'){data.cell.styles.textColor=[133,100,4];data.cell.styles.fontStyle='bold';}
+            }
+          }
+        }
+      });
+      y=doc.lastAutoTable.finalY+8;
+    }
+
+    // Footer
+    if(y>pageH-16) y=pageH-16;
+    doc.setDrawColor(200,200,200);
+    doc.line(14,y,pageW-14,y);
+    doc.setFontSize(8);doc.setTextColor(150,150,150);doc.setFont('helvetica','normal');
+    doc.text('Generato il '+(new Date().toLocaleDateString('it-IT'))+' - Elenco Pre/Post '+monthLabel,pageW/2,y+6,{align:'center'});
+
+    var fileName='PrePost_'+className.replace(/\s+/g,'_')+'_'+MONTHS[cm]+'_'+cy+'.pdf';
     doc.save(fileName);
   },
   openDietModal:function(idx){showDietModal=idx;render();},
