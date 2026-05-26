@@ -316,6 +316,10 @@ var classes = {};
 var currentClassId = '';
 var unlockedClasses = {};
 var classLocked = false;
+var COORDINATRICE_ID = '__coordinatrice__';
+
+function regularClassCount(){var c=0;for(var k in classes){if(classes.hasOwnProperty(k)&&k!==COORDINATRICE_ID)c++;}return c;}
+function isCoordinatrice(){return currentClassId===COORDINATRICE_ID;}
 
 var DAYS = ['Domenica','Luned\u00ec','Marted\u00ec','Mercoled\u00ec','Gioved\u00ec','Venerd\u00ec','Sabato'];
 var MONTHS = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
@@ -347,6 +351,63 @@ function nameReversed(name){
 function countKeys(obj){var c=0;for(var k in obj)if(obj.hasOwnProperty(k))c++;return c;}
 function hasKey(obj,k){return obj.hasOwnProperty(k);}
 function esc(s){if(!s)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function ensureCoordinatrice(){
+  if(!classes[COORDINATRICE_ID]){
+    classes[COORDINATRICE_ID]={
+      id:COORDINATRICE_ID,name:'COORDINATRICE',pin:'',isCoordinatrice:true,
+      children:[],childDiets:{},childGender:{},childDeleghe:{},childContatti:{},
+      childLastModified:{},childAge:{},childNotes:{},
+      dateData:{},holidays:{},dayNotes:{},
+      teacher1:'',teacher2:'',sortMode:'default'
+    };
+  }
+}
+
+function rebuildCoordinatriceChildren(){
+  var c=classes[COORDINATRICE_ID];
+  if(!c) return;
+  var newChildren=[];
+  var newSourceMap={};
+  var classKeys=Object.keys(classes);
+  var CLASS_COLORS=['#5b9bd5','#28a745','#e67e00','#9c27b0','#dc3545','#17a2b8','#6c757d','#1a1a2e'];
+  var colorIdx=0;
+  for(var i=0;i<classKeys.length;i++){
+    var cId=classKeys[i];
+    if(cId===COORDINATRICE_ID) continue;
+    var src=classes[cId];
+    if(!src||!src.children) continue;
+    var srcColor=CLASS_COLORS[colorIdx%CLASS_COLORS.length];colorIdx++;
+    for(var j=0;j<src.children.length;j++){
+      var idx=newChildren.length;
+      newChildren.push(src.children[j]);
+      newSourceMap[idx]={classId:cId,className:src.name||'Classe',sourceIndex:j,color:srcColor};
+    }
+  }
+  c.children=newChildren;
+  c.childSourceMap=newSourceMap;
+  // Carica nelle variabili globali
+  children=newChildren.slice();
+  for(var li=0;li<children.length;li++){children[li]=children[li].toUpperCase();}
+  childDiets={};childGender={};childDeleghe={};childContatti={};childLastModified={};childAge={};childNotes={};
+  // Copia dati bambino dalle classi sorgente
+  for(var k=0;k<newChildren.length;k++){
+    var s=newSourceMap[k];if(!s) continue;
+    var sc=classes[s.classId];if(!sc) continue;
+    if(sc.childDiets&&sc.childDiets[s.sourceIndex]) childDiets[k]=sc.childDiets[s.sourceIndex];
+    if(sc.childGender&&sc.childGender[s.sourceIndex]) childGender[k]=sc.childGender[s.sourceIndex];
+    if(sc.childDeleghe&&sc.childDeleghe[s.sourceIndex]) childDeleghe[k]=sc.childDeleghe[s.sourceIndex];
+    if(sc.childContatti&&sc.childContatti[s.sourceIndex]) childContatti[k]=sc.childContatti[s.sourceIndex];
+    if(sc.childAge&&sc.childAge[s.sourceIndex]) childAge[k]=sc.childAge[s.sourceIndex];
+    if(sc.childNotes&&sc.childNotes[s.sourceIndex]) childNotes[k]=sc.childNotes[s.sourceIndex];
+  }
+  dateData=c.dateData||{};
+  holidays={};dayNotes={};
+  className='COORDINATRICE';teacher1=c.teacher1||'';teacher2=c.teacher2||'';sortMode='default';
+  var key=getCurrentDateKey();var dd=dateData[key];
+  if(dd){presenze=dd.presenze||{};pre=dd.pre||{};post=dd.post||{};}
+  else{presenze={};pre={};post={};}
+}
 
 function getDietType(typeId){
   for(var i=0;i<DIET_TYPES.length;i++){
@@ -407,6 +468,16 @@ function saveCurrentClassData(){
   if(!currentClassId) return;
   if(!classes[currentClassId]) classes[currentClassId]={};
   classes[currentClassId].id=currentClassId;
+  // COORDINATRICE: salva solo dateData (presenze), non i bambini (vengono dalle classi)
+  if(currentClassId===COORDINATRICE_ID){
+    classes[currentClassId].name='COORDINATRICE';
+    classes[currentClassId].isCoordinatrice=true;
+    classes[currentClassId].pin=classes[currentClassId].pin||'';
+    classes[currentClassId].dateData=JSON.parse(JSON.stringify(dateData));
+    classes[currentClassId].teacher1=teacher1;
+    classes[currentClassId].teacher2=teacher2;
+    return;
+  }
   // Sync: usa sempre il nome salvato nella classe se diverso da className globale
   if(classes[currentClassId].name&&classes[currentClassId].name!==className){
     className=classes[currentClassId].name;
@@ -432,6 +503,8 @@ function saveCurrentClassData(){
 function loadClassData(classId){
   if(!classes[classId]) return;
   currentClassId=classId;
+  // COORDINATRICE: ricostruisci bambini da tutte le classi
+  if(classId===COORDINATRICE_ID){rebuildCoordinatriceChildren();return;}
   var c=classes[classId];
   children=c.children||[];
   for(var li=0;li<children.length;li++){children[li]=children[li].toUpperCase();}
@@ -456,7 +529,8 @@ function loadClassData(classId){
 }
 
 function ensureDefaultClass(){
-  if(Object.keys(classes).length===0){
+  ensureCoordinatrice();
+  if(regularClassCount()===0){
     var defId=generateClassId();
     classes[defId]={
       id:defId,
@@ -481,25 +555,27 @@ function ensureDefaultClass(){
     loadClassData(defId);
     unlockedClasses[defId]=true;
   }
-  if(!currentClassId){
-    var firstKey=Object.keys(classes)[0];
-    if(firstKey) loadClassData(firstKey);
+  if(!currentClassId||!classes[currentClassId]||currentClassId===COORDINATRICE_ID){
+    // Prova a caricare una classe regolare, non COORDINATRICE
+    var rkeys=Object.keys(classes).filter(function(k){return k!==COORDINATRICE_ID;});
+    if(rkeys.length>0) loadClassData(rkeys[0]);
+    else loadClassData(COORDINATRICE_ID);
   }
   updateClassLockState();
 }
 
 function updateClassLockState(){
   if(!currentClassId||!classes[currentClassId]){classLocked=false;return;}
-  // Se c'è solo 1 classe, il PIN non serve mai
-  if(Object.keys(classes).length<=1){classLocked=false;unlockedClasses[currentClassId]=true;return;}
+  // Se c'è solo 1 classe regolare, il PIN non serve mai (COORDINATRICE non conta)
+  if(regularClassCount()<=1){classLocked=false;unlockedClasses[currentClassId]=true;return;}
   var pin=classes[currentClassId].pin||'';
   classLocked=pin&&pin.length>0&&!unlockedClasses[currentClassId];
 }
 
 function tryUnlockClass(classId){
   if(!classes[classId]) return false;
-  // Se c'è solo 1 classe, nessun PIN richiesto
-  if(Object.keys(classes).length<=1){unlockedClasses[classId]=true;return true;}
+  // Se c'è solo 1 classe regolare, nessun PIN richiesto
+  if(regularClassCount()<=1){unlockedClasses[classId]=true;return true;}
   var pin=classes[classId].pin||'';
   if(!pin){unlockedClasses[classId]=true;return true;}
   if(unlockedClasses[classId]) return true;
@@ -767,24 +843,40 @@ function render(){
   html+='<div class="class-tabs">';
   var classKeys=Object.keys(classes);
   var CLASS_COLORS=['#1a1a2e','#5b9bd5','#28a745','#e67e00','#9c27b0','#dc3545','#17a2b8','#6c757d'];
-  html+='<span class="class-tabs-label">Classi ('+classKeys.length+'):</span>';
+  // Mostra prima COORDINATRICE, poi le classi regolari
+  var regCount=regularClassCount();
+  html+='<span class="class-tabs-label">Classi ('+regCount+'):</span>';
+  // Tab COORDINATRICE (sempre per prima, stile speciale)
+  if(classes[COORDINATRICE_ID]){
+    var coor=classes[COORDINATRICE_ID];
+    var coorActive=COORDINATRICE_ID===currentClassId;
+    var coorPin=coor.pin||'';
+    var coorUnlocked=unlockedClasses[COORDINATRICE_ID]||!coorPin;
+    var coorChildren=0;
+    for(var ci2=0;ci2<classKeys.length;ci2++){if(classKeys[ci2]!==COORDINATRICE_ID) coorChildren+=(classes[classKeys[ci2]].children||[]).length;}
+    html+='<div class="class-tab'+(coorActive?' active':'')+'" style="'+(coorActive?'border-color:#ffd700;background:linear-gradient(135deg,#7b2d8e,#9c27b0);color:white':'border-color:#9c27b0;color:#9c27b0')+'" onclick="App.switchClass(\''+COORDINATRICE_ID+'\')">';
+    html+='<span style="font-size:13px">\u{1F451}</span> '+esc(coor.name)+' <span style="font-size:11px;opacity:0.6">('+coorChildren+')</span>';
+    if(coorPin){html+='<span style="font-size:10px;opacity:0.7" title="Classe protetta da PIN">'+(coorUnlocked?'\ud83d\udd13':'\ud83d\udd12')+'</span>';}
+    html+='</div>';
+  }
+  // Tab classi regolari
+  var colorIdx=0;
   for(var cki=0;cki<classKeys.length;cki++){
     var cId=classKeys[cki];
+    if(cId===COORDINATRICE_ID) continue;
     var cName=classes[cId].name||'Classe';
     var cPin=classes[cId].pin||'';
     var isActive=cId===currentClassId;
     var isUnlocked=unlockedClasses[cId]||!cPin;
-    var tabColor=CLASS_COLORS[cki%CLASS_COLORS.length];
+    var tabColor=CLASS_COLORS[colorIdx%CLASS_COLORS.length];colorIdx++;
     html+='<div class="class-tab'+(isActive?' active':'')+'" style="'+(isActive?'border-color:'+tabColor+';background:'+tabColor+';color:white':'border-color:'+tabColor+';color:'+tabColor)+'" onclick="App.switchClass(\''+cId+'\')">';
     html+=esc(cName)+' <span style="font-size:11px;opacity:0.6">('+((classes[cId].children||[]).length)+')</span>';
     if(cPin){html+='<span style="font-size:10px;opacity:0.7" title="Classe protetta da PIN">'+(isUnlocked?'\ud83d\udd13':'\ud83d\udd12')+'</span>';}
-    if(classKeys.length>1){
-      html+='<button class="class-tab-del" onclick="event.stopPropagation();App.deleteClass(\''+cId+'\')" title="Elimina classe '+esc(cName)+'">\u00d7</button>';
-    }
+    html+='<button class="class-tab-del" onclick="event.stopPropagation();App.deleteClass(\''+cId+'\')" title="Elimina classe '+esc(cName)+'">\u00d7</button>';
     html+='</div>';
   }
   html+='<div class="class-tab-add" onclick="App.addClass()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Aggiungi Classe</div>';
-  if(currentUser&&currentClassId&&Object.keys(classes).length>1){html+='<div class="class-tab" style="border-color:#ffc107;background:#fff8e1;color:#856404;font-size:11px" onclick="App.managePin()" title="Gestisci PIN classe">\ud83d\udd12 PIN</div>';}
+  if(currentUser&&currentClassId&&regularClassCount()>1){html+='<div class="class-tab" style="border-color:#ffc107;background:#fff8e1;color:#856404;font-size:11px" onclick="App.managePin()" title="Gestisci PIN classe">\ud83d\udd12 PIN</div>';}
   html+='</div>';
 
   // Locked class banner
@@ -886,10 +978,16 @@ function render(){
     var dietTagClass=hasDiet?getDietTagClass(childDiets[idx].type):'';
     var gClass=getGenderClass(idx);
     html+='<div class="child-row '+gClass+'-row" data-name="'+esc(name.toLowerCase())+'"><div class="child-info">';
-    if(editingChild===idx){html+='<input class="child-name-input" id="childInput" value="'+esc(editValue)+'" onblur="App.finishEditChild()" onkeydown="if(event.key===\'Enter\')App.finishEditChild();if(event.key===\'Escape\')App.cancelEditChild()"/>';}
+    if(editingChild===idx&&!isCoordinatrice()){html+='<input class="child-name-input" id="childInput" value="'+esc(editValue)+'" onblur="App.finishEditChild()" onkeydown="if(event.key===\'Enter\')App.finishEditChild();if(event.key===\'Escape\')App.cancelEditChild()"/>';}
     else{
       var noteIndicator=childNotes[idx]?' <span style="font-size:10px;opacity:0.8">\ud83d\udcdd</span>':'';
-      html+='<div class="child-name-badge '+gClass+'" onclick="App.showChildDetail('+idx+')" title="Clicca per vedere il riepilogo">'+esc(nameReversed(name))+noteIndicator+'</div>';
+      html+='<div class="child-name-badge '+gClass+'" onclick="App.showChildDetail('+idx+')" title="Clicca per vedere il riepilogo">'+esc(nameReversed(name))+noteIndicator;
+      // Tag classe per COORDINATRICE
+      if(isCoordinatrice()&&classes[COORDINATRICE_ID]&&classes[COORDINATRICE_ID].childSourceMap&&classes[COORDINATRICE_ID].childSourceMap[idx]){
+        var srcInfo=classes[COORDINATRICE_ID].childSourceMap[idx];
+        html+='<span style="font-size:9px;margin-left:4px;padding:1px 5px;border-radius:4px;background:'+srcInfo.color+';opacity:0.8">'+esc(srcInfo.className)+'</span>';
+      }
+      html+='</div>';
     }
     html+='</div>';
     var age=childAge[idx]||'';
@@ -908,7 +1006,8 @@ function render(){
   }
   html+='</div>';
   // Add child button
-  if(!locked){html+='<button class="btn" style="width:100%;margin-top:8px;justify-content:center;border:2px dashed #28a745;color:#28a745;font-weight:700;background:rgba(40,167,69,0.1)" onclick="App.addChild()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Aggiungi Bambino</button>';}
+  // Add child button (non per COORDINATRICE - bambini vengono dalle classi)
+  if(!locked&&!isCoordinatrice()){html+='<button class="btn" style="width:100%;margin-top:8px;justify-content:center;border:2px dashed #28a745;color:#28a745;font-weight:700;background:rgba(40,167,69,0.1)" onclick="App.addChild()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Aggiungi Bambino</button>';}
   html+='</div>';
 
   html+='<div class="stat-card"><div><div class="stat-label">Totale presenze</div><div class="stat-sub">'+esc(dateToFull(currentDate))+'</div></div><div class="stat-value" style="color:#28a745">'+totalPresenze+'</div></div>';
@@ -990,7 +1089,7 @@ function renderChildDetail(idx){
   html+='<div class="child-detail-avatar '+gClassD+'" '+(locked?'':'onclick="App.toggleGender('+idx+')" ')+'title="'+(locked?'':'Clicca per cambiare genere')+'">'+getInitials(childName)+'</div>';
   html+='<div style="flex:1;min-width:0"><div class="child-detail-name-row"><span class="child-detail-name">'+esc(childName)+'</span>';
   var gLabel=getGender(idx)==='f'?'Femmina':'Maschio';
-  if(!locked){html+='<button class="edit-name-btn" onclick="App.toggleGender('+idx+')" title="Cambia genere">'+(getGender(idx)==='f'?'👧':'👦')+' '+gLabel+'</button>';html+='<button class="edit-name-btn" onclick="App.editChildFromDetail('+idx+')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Modifica</button>';}else{html+='<span style="font-size:12px;color:rgba(255,255,255,0.5)">'+(getGender(idx)==='f'?'👧':'👦')+' '+gLabel+'</span>';}
+  if(!locked&&!isCoordinatrice()){html+='<button class="edit-name-btn" onclick="App.toggleGender('+idx+')" title="Cambia genere">'+(getGender(idx)==='f'?'👧':'👦')+' '+gLabel+'</button>';html+='<button class="edit-name-btn" onclick="App.editChildFromDetail('+idx+')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Modifica</button>';}else{html+='<span style="font-size:12px;color:rgba(255,255,255,0.5)">'+(getGender(idx)==='f'?'👧':'👦')+' '+gLabel+'</span>';}
   html+='</div>';
   if(hasDiet){html+='<div class="child-detail-diet">🍽 '+esc(dietInfo)+(childDiets[idx].note?' - '+esc(childDiets[idx].note):'')+'</div>';}
   var badgeAge=childAge[idx]||'';
@@ -1081,7 +1180,7 @@ function renderChildDetail(idx){
   html+='<textarea id="childNoteInput" placeholder="'+childNotePlaceholder+'" style="width:100%;min-height:48px;padding:8px 10px;border:1px solid rgba(255,255,255,0.2);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;outline:none;color:white;background:'+(childNoteDisabled?'rgba(255,255,255,0.05)':'rgba(255,255,255,0.1)')+'" oninput="App.updateChildNote('+idx+',this.value)" '+(childNoteDisabled?'disabled':'')+'>'+esc(childNote)+'</textarea>';
   html+='</div>';
 
-  if(!locked){html+='<button class="btn btn-danger" style="width:100%;margin-top:8px;justify-content:center;background:rgba(220,53,69,0.15);border-color:rgba(220,53,69,0.4);color:#ff6b7a" onclick="App.removeChild('+idx+')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Rimuovi Bambino</button>';}
+  if(!locked&&!isCoordinatrice()){html+='<button class="btn btn-danger" style="width:100%;margin-top:8px;justify-content:center;background:rgba(220,53,69,0.15);border-color:rgba(220,53,69,0.4);color:#ff6b7a" onclick="App.removeChild('+idx+')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Rimuovi Bambino</button>';}
   html+='<button class="child-detail-close" style="background:white;color:#1a1a2e" onclick="App.closeChildDetail()">Chiudi</button>';
   html+='</div></div>';
   return html;
@@ -1108,7 +1207,7 @@ window.App={
     var name=prompt('Nome della nuova classe\n(es. Farfalle, Cuori, Stelle):');
     if(!name||!name.trim()) return;
     name=name.trim().toUpperCase();
-    var isFirstClass=Object.keys(classes).length===0;
+    var isFirstClass=regularClassCount()===0;
     var pin='';
     if(!isFirstClass){
       pin=prompt('Crea un PIN per questa classe (4-6 cifre):\nIl PIN sarà richiesto per accedere a questa classe.');
@@ -1136,7 +1235,8 @@ window.App={
   },
   deleteClass:function(classId){
     if(!classes[classId]) return;
-    if(Object.keys(classes).length<=1){alert('Non puoi eliminare l\'unica classe.');return;}
+    if(classId===COORDINATRICE_ID){alert('La classe COORDINATRICE non pu\u00f2 essere eliminata.');return;}
+    if(regularClassCount()<=1){alert('Non puoi eliminare l\'unica classe.');return;}
     var cName=classes[classId].name||'Classe';
     var cPin=classes[classId].pin||'';
     if(cPin){
@@ -1156,8 +1256,8 @@ window.App={
   switchClass:function(classId){
     if(classId===currentClassId) return;
     if(!tryUnlockClass(classId)) return;
-    // Ri-blocca la classe corrente quando si cambia: ogni accesso richiede il PIN (solo se ci sono più classi)
-    if(Object.keys(classes).length>1&&currentClassId&&classes[currentClassId]&&classes[currentClassId].pin){
+    // Ri-blocca la classe corrente quando si cambia: ogni accesso richiede il PIN (solo se ci sono più classi regolari)
+    if(regularClassCount()>1&&currentClassId&&classes[currentClassId]&&classes[currentClassId].pin){
       delete unlockedClasses[currentClassId];
     }
     saveCurrentClassData();
