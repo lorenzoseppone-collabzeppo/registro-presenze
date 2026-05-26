@@ -676,6 +676,9 @@ function render(){
     html+='</div>';
   }
   html+='</div>';
+  // Add child button
+  html+='<button class="btn" style="width:100%;margin-top:8px;justify-content:center;border:2px dashed #28a745;color:#28a745;font-weight:700;background:#f0fff4" onclick="App.addChild()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Aggiungi Bambino</button>';
+  html+='</div>';
 
   html+='<div class="stat-card"><div><div class="stat-label">Totale presenze</div><div class="stat-sub">'+esc(dateToFull(currentDate))+'</div></div><div class="stat-value" style="color:#28a745">'+totalPresenze+'</div></div>';
   html+='<div class="stat-card"><div><div class="stat-label">Totale pre</div><div class="stat-sub">Ingressi Anticipati</div></div><div class="stat-value" style="color:#e67e00">'+totalPre+'</div></div>';
@@ -849,6 +852,7 @@ function renderChildDetail(idx){
   html+='<textarea id="childNoteInput" placeholder="'+childNotePlaceholder+'" style="width:100%;min-height:48px;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;outline:none;color:#333;background:'+(childNoteDisabled?'#f5f5f5':'white')+'" oninput="App.updateChildNote('+idx+',this.value)" '+(childNoteDisabled?'disabled':'')+'>'+esc(childNote)+'</textarea>';
   html+='</div>';
 
+  html+='<button class="btn btn-danger" style="width:100%;margin-top:8px;justify-content:center" onclick="App.removeChild('+idx+')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Rimuovi Bambino</button>';
   html+='<button class="child-detail-close" onclick="App.closeChildDetail()">Chiudi</button>';
   html+='</div></div>';
   return html;
@@ -870,6 +874,72 @@ window.App={
   showChildDetail:function(i){selectedChild=i;render();},
   closeChildDetail:function(){selectedChild=-1;render();},
   editChildFromDetail:function(i){selectedChild=-1;editingChild=i;editValue=children[i];render();},
+  addChild:function(){
+    var name=prompt('Nome del nuovo bambino\n(es. Rossi Luca):');
+    if(!name||!name.trim()) return;
+    children.push(name.trim());
+    // Initialize gender auto-detect
+    var g=guessGender(name.trim());
+    childGender[children.length-1]=g;
+    childLastModified[children.length-1]=Date.now();
+    saveState();render();
+  },
+  removeChild:function(i){
+    if(!confirm('Rimuovere '+children[i]+' dalla lista?\n\nI dati di presenze, deleghe, contatti e note verranno persi.')) return;
+    var len=children.length;
+    children.splice(i,1);
+    // Shift all index-based data down
+    var keys=['childDiets','childGender','childDeleghe','childContatti','childLastModified','childAge','childNotes'];
+    for(var ki=0;ki<keys.length;ki++){
+      var obj=window[keys[ki]];
+      if(!obj) continue;
+      // Build new object with shifted indices
+      var newObj={};
+      for(var k in obj){
+        if(!obj.hasOwnProperty(k)) continue;
+        var idx=parseInt(k);
+        if(idx===i) continue; // skip removed
+        if(idx>i) newObj[idx-1]=obj[k];
+        else newObj[idx]=obj[k];
+      }
+      window[keys[ki]]=newObj;
+    }
+    // Fix presenze/pre/post for current date
+    var dateKeys=['presenze','pre','post'];
+    for(var di=0;di<dateKeys.length;di++){
+      var dObj=window[dateKeys[di]];
+      if(!dObj) continue;
+      var newDObj={};
+      for(var dk in dObj){
+        if(!dObj.hasOwnProperty(dk)) continue;
+        var didx=parseInt(dk);
+        if(didx===i) continue;
+        if(didx>i) newDObj[didx-1]=dObj[dk];
+        else newDObj[didx]=dObj[dk];
+      }
+      window[dateKeys[di]]=newDObj;
+    }
+    // Fix dateData presenze/pre/post indices
+    for(var ddk in dateData){
+      if(!dateData.hasOwnProperty(ddk)) continue;
+      var dd=dateData[ddk];
+      for(var dci=0;dci<3;dci++){
+        var dck=['presenze','pre','post'][dci];
+        if(!dd[dck]) continue;
+        var ndd={};
+        for(var ix in dd[dck]){
+          if(!dd[dck].hasOwnProperty(ix)) continue;
+          var nix=parseInt(ix);
+          if(nix===i) continue;
+          if(nix>i) ndd[nix-1]=dd[dck][ix];
+          else ndd[nix]=dd[dck][ix];
+        }
+        dd[dck]=ndd;
+      }
+    }
+    selectedChild=-1;showDietModal=-1;
+    saveState();render();
+  },
   toggleGender:function(i){var g=getGender(i);childGender[i]=(g==='m'?'f':'m');saveState();render();},
   addDelega:function(i){var inp=document.getElementById('delegaInput');if(inp&&inp.value.trim()){if(!childDeleghe[i])childDeleghe[i]=[];childDeleghe[i].push(inp.value.trim());saveState();render();}},
   removeDelega:function(i,di){if(childDeleghe[i]){childDeleghe[i].splice(di,1);if(childDeleghe[i].length===0)delete childDeleghe[i];saveState();render();}},
