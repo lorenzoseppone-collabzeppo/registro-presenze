@@ -306,6 +306,7 @@ var loginLoading = false;
 var db = null;
 var syncStatus = 'idle';
 var firestoreLoaded = false;
+var firestoreLoadDone = false;
 var showDietModal = -1;
 var selectedChild = -1;
 
@@ -602,7 +603,7 @@ function resetAllData(){
 function saveState(){
   saveCurrentClassData();
   if(currentUser){
-    try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:classes,currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
+    try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
     saveToFirestore();
   }
 }
@@ -659,13 +660,21 @@ function saveToFirestore(){
   syncStatus='saving';renderSyncBar();
   firestoreSaveTimer=setTimeout(function(){doSaveToFirestore();},1000);
 }
+function saveToFirestoreNow(){
+  if(!currentUser||!db) return;
+  if(firestoreSaveTimer){clearTimeout(firestoreSaveTimer);firestoreSaveTimer=null;}
+  syncStatus='saving';renderSyncBar();
+  doSaveToFirestore();
+}
 function doSaveToFirestore(){
   if(!currentUser||!db) return;
   saveCurrentClassData();
-  var data={classes:classes,currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+  // Always save to localStorage first (synchronous, immediate backup)
+  try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
+  var data={classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
   db.collection('users').doc(currentUser.uid).set(data)
-    .then(function(){syncStatus='synced';renderSyncBar();setTimeout(function(){if(syncStatus==='synced'){syncStatus='idle';renderSyncBar();}},3000);})
-    .catch(function(err){console.error('Firestore save error:',err);syncStatus='error';renderSyncBar();});
+    .then(function(){syncStatus='synced';renderSyncBar();savePinsToLocalStorage();setTimeout(function(){if(syncStatus==='synced'){syncStatus='idle';renderSyncBar();}},3000);})
+    .catch(function(err){console.error('Firestore save error:',err);syncStatus='error';renderSyncBar();alert('Errore di salvataggio nel cloud! I dati sono salvati localmente. Errore: '+err.message);});
 }
 function restorePinsFromLocalStorage(){
   // Ripristina i PIN da localStorage - SEMPRE sovrascrivi se localStorage ha un PIN
@@ -695,6 +704,8 @@ function savePinsToLocalStorage(){
 }
 function loadFromFirestore(uid){
   if(!db) return;
+  // Prevent double-loading: if already loaded for this user, skip
+  if(firestoreLoadDone&&currentUser&&currentUser.uid===uid) return;
   resetAllData();
   syncStatus='saving';renderSyncBar();
   db.collection('users').doc(uid).get()
@@ -739,14 +750,27 @@ function loadFromFirestore(uid){
         // Se la classe non ha PIN, sbloccala automaticamente
         if(currentClassId&&classes[currentClassId]&&!(classes[currentClassId].pin&&classes[currentClassId].pin.length>0)){unlockedClasses[currentClassId]=true;}
         // Save in new format
-        try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:classes,currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
+        try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
+        savePinsToLocalStorage();
       }else{
-        try{localStorage.removeItem(getStorageKey());}catch(e){}
+        // No Firestore doc yet — try localStorage as fallback
+        loadState();
+        ensureDefaultClass();
+        updateClassLockState();
       }
+      firestoreLoadDone=true;
       firestoreLoaded=true;syncStatus='synced';updateClassLockState();render();
       setTimeout(function(){if(syncStatus==='synced'){syncStatus='idle';renderSyncBar();}},3000);
     })
-    .catch(function(err){console.error('Firestore load error:',err);firestoreLoaded=true;syncStatus='error';render();});
+    .catch(function(err){
+      console.error('Firestore load error:',err);
+      firestoreLoadDone=true;firestoreLoaded=true;syncStatus='error';
+      // Fallback: load from localStorage if Firestore fails
+      loadState();
+      ensureDefaultClass();
+      updateClassLockState();
+      render();
+    });
 }
 function renderSyncBar(){
   var bar=document.getElementById('sync-bar');
@@ -773,9 +797,11 @@ function initFirebase(){
       if(u){
         if(previousUser&&previousUser.uid!==u.uid){
           resetAllData();
+          firestoreLoadDone=false;
         }
         loadFromFirestore(u.uid);
       }else{
+        firestoreLoadDone=false;
         try{localStorage.removeItem('rp_data');}catch(e){}
         try{if(previousUser){localStorage.removeItem('rp_data_'+previousUser.uid);}}catch(e2){}
         resetAllData();
@@ -1300,7 +1326,12 @@ window.App={
     currentClassId=newId;
     loadClassData(newId);
     updateClassLockState();
-    saveState();render();
+    // Save IMMEDIATELY to Firestore (no debounce) for class additions
+    saveCurrentClassData();
+    try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
+    savePinsToLocalStorage();
+    saveToFirestoreNow();
+    render();
   },
   deleteClass:function(classId){
     if(!classes[classId]) return;
@@ -1320,7 +1351,11 @@ window.App={
       var firstKey=Object.keys(classes)[0];
       if(firstKey) loadClassData(firstKey);
     }
-    saveState();render();
+    // Save IMMEDIATELY to Firestore for class deletions
+    saveCurrentClassData();
+    try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
+    saveToFirestoreNow();
+    render();
   },
   switchClass:function(classId){
     if(classId===currentClassId) return;
@@ -1354,14 +1389,10 @@ window.App={
     unlockedClasses[currentClassId]=true;
     // Salva PIN su localStorage dedicato (SINCRONO - backup principale)
     savePinsToLocalStorage();
-    // Salva sui dati generali
+    // Salva immediatamente su Firestore (operazione critica)
     saveCurrentClassData();
     try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
-    // Salva su Firestore
-    if(currentUser&&db){
-      var data={classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
-      db.collection('users').doc(currentUser.uid).set(data).then(function(){syncStatus='synced';renderSyncBar();}).catch(function(err){console.error('Save error:',err);syncStatus='error';renderSyncBar();});
-    }
+    saveToFirestoreNow();
     updateClassLockState();
     render();
     if(pinValue){alert('PIN impostato!\nQuando ricarichi la pagina ti verrà richiesto il PIN.');}
@@ -1381,14 +1412,10 @@ window.App={
     unlockedClasses[COORDINATRICE_ID]=true;
     // Salva PIN su localStorage dedicato (SINCRONO - backup principale)
     savePinsToLocalStorage();
-    // Salva sui dati generali
+    // Salva immediatamente su Firestore (operazione critica)
     saveCurrentClassData();
     try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
-    // Salva su Firestore
-    if(currentUser&&db){
-      var data={classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
-      db.collection('users').doc(currentUser.uid).set(data).then(function(){syncStatus='synced';renderSyncBar();}).catch(function(err){console.error('Save error:',err);syncStatus='error';renderSyncBar();});
-    }
+    saveToFirestoreNow();
     updateClassLockState();
     render();
     if(pinValue){alert('PIN COORDINATRICE impostato!\nQuando ricarichi la pagina ti verrà richiesto il PIN.');}
