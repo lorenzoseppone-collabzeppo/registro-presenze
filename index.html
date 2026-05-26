@@ -664,6 +664,11 @@ function initFirebase(){
         }
         loadFromFirestore(u.uid);
       }else{
+        // Prima di resettare, salva i dati dell'utente precedente su Firestore
+        if(previousUser&&classes&&Object.keys(classes).length>0){
+          saveCurrentClassData();
+          doSaveToFirestore();
+        }
         try{localStorage.removeItem('rp_data');}catch(e){}
         try{if(previousUser){localStorage.removeItem('rp_data_'+previousUser.uid);}}catch(e2){}
         resetAllData();
@@ -678,7 +683,7 @@ function handleLogin(){
   if(typeof firebase==='undefined'){alert('Firebase non caricato. Ricarica la pagina.');return;}
   var auth=firebase.auth();
   if(currentUser){
-    if(confirm('Vuoi disconnettere l\'account "'+(currentUser.displayName||currentUser.email)+'"?\n\nI dati rimarranno salvati nel tuo account Google.')){saveCurrentDateData();doSaveToFirestore();auth.signOut().then(function(){try{localStorage.removeItem(getStorageKey());}catch(e){}resetAllData();render();});}
+    if(confirm('Vuoi disconnettere l\'account "'+(currentUser.displayName||currentUser.email)+'"?\n\nI dati rimarranno salvati nel tuo account Google.')){saveCurrentClassData();doSaveToFirestore();auth.signOut().then(function(){try{localStorage.removeItem(getStorageKey());}catch(e){}resetAllData();render();});}
   }else{
     loginLoading=true;render();
     var provider=new firebase.auth.GoogleAuthProvider();
