@@ -858,11 +858,11 @@ function doSaveToFirestore(){
   var classCount=Object.keys(classes).length;
   console.log('[SAVE] Saving to Firestore: '+classCount+' classes, currentClassId='+currentClassId);
   for(var cid in classes){if(classes.hasOwnProperty(cid)){console.log('[SAVE] Class: '+cid+' = '+(classes[cid].name||'?')+' (pin='+(classes[cid].pin?'SET':'none')+', children='+(classes[cid].children?classes[cid].children.length:0)+')');}}
-  db.collection('users').doc(currentUser.uid).set(data)
+  db.collection('registro_presenze').doc('rp_data_'+currentUser.uid).set(data)
     .then(function(){
       console.log('[SAVE] Firestore save SUCCESS - '+classCount+' classes saved');
       // VERIFICATION: read back from server to confirm save
-      db.collection('users').doc(currentUser.uid).get({source:'server'}).then(function(verifyDoc){
+      db.collection('registro_presenze').doc('rp_data_'+currentUser.uid).get({source:'server'}).then(function(verifyDoc){
         if(verifyDoc.exists){
           var vd=verifyDoc.data();
           var vCount=vd.classes?Object.keys(vd.classes).length:0;
@@ -926,15 +926,76 @@ function loadFromFirestore(uid){
   
   // STEP 2: Always fetch from SERVER first to get the freshest data
   // This is critical for multi-device sync - cache can be stale
-  db.collection('users').doc(uid).get({source:'server'})
+  db.collection('registro_presenze').doc('rp_data_'+uid).get({source:'server'})
     .then(function(doc){
-      console.log('[LOAD] Got data from SERVER, doc exists: '+doc.exists);
-      handleFirestoreData(doc, uid, localData);
+      console.log('[LOAD] Got data from SERVER (registro_presenze), doc exists: '+doc.exists);
+      if(doc.exists&&doc.data()&&doc.data().classes){
+        handleFirestoreData(doc, uid, localData);
+      }else{
+        // No data in registro_presenze - try migrating from old 'users' collection
+        console.log('[MIGRATE] No data in registro_presenze, checking old users collection...');
+        db.collection('users').doc(uid).get({source:'server'})
+          .then(function(oldDoc){
+            if(oldDoc.exists&&oldDoc.data()&&oldDoc.data().classes){
+              console.log('[MIGRATE] Found data in old users collection! Migrating...');
+              // Save old data to new collection
+              var oldData=oldDoc.data();
+              db.collection('registro_presenze').doc('rp_data_'+uid).set({
+                classes:oldData.classes,
+                currentClassId:oldData.currentClassId||'',
+                schoolName:oldData.schoolName||'',
+                updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+              }).then(function(){
+                console.log('[MIGRATE] Migration SUCCESS! Data copied to registro_presenze');
+                handleFirestoreData(oldDoc, uid, localData);
+              }).catch(function(migErr){
+                console.error('[MIGRATE] Migration failed:',migErr);
+                // Still use the old data
+                handleFirestoreData(oldDoc, uid, localData);
+              });
+            }else{
+              // No data in either collection
+              console.log('[LOAD] No data in Firestore. Using localStorage if available.');
+              if(localData){
+                classes=localData.classes;
+                currentClassId=localData.currentClassId||'';
+                if(localData.schoolName) schoolName=localData.schoolName;
+                if(localData.currentDate){try{currentDate=new Date(localData.currentDate+'T12:00:00');}catch(e3){}}
+                restorePinsFromLocalStorage();
+                if(currentClassId&&classes[currentClassId]){loadClassData(currentClassId);}
+                ensureDefaultClass();
+                restorePinsFromLocalStorage();
+              }else{
+                ensureDefaultClass();
+              }
+              // Save whatever we have to the new collection
+              saveToFirestoreNow();
+              firestoreLoadDone=true;firestoreLoaded=true;syncStatus='synced';updateClassLockState();render();
+            }
+          })
+          .catch(function(oldErr){
+            console.warn('[MIGRATE] Could not check old collection:',oldErr);
+            if(localData){
+              classes=localData.classes;
+              currentClassId=localData.currentClassId||'';
+              if(localData.schoolName) schoolName=localData.schoolName;
+              if(localData.currentDate){try{currentDate=new Date(localData.currentDate+'T12:00:00');}catch(e3){}}
+              restorePinsFromLocalStorage();
+              if(currentClassId&&classes[currentClassId]){loadClassData(currentClassId);}
+              ensureDefaultClass();
+              restorePinsFromLocalStorage();
+            }else{
+              ensureDefaultClass();
+            }
+            saveToFirestoreNow();
+            firestoreLoadDone=true;firestoreLoaded=true;syncStatus='synced';updateClassLockState();render();
+          });
+      }
     })
     .catch(function(serverErr){
       // If server fetch fails (offline, etc.), try cache as fallback
       console.warn('[LOAD] Server fetch failed, trying cache:', serverErr.message||serverErr);
-      db.collection('users').doc(uid).get({source:'cache'})
+      db.collection('registro_presenze').doc('rp_data_'+uid).get({source:'cache'})
         .then(function(doc){
           console.log('[LOAD] Got data from CACHE as fallback, doc exists: '+doc.exists);
           handleFirestoreData(doc, uid, localData);
@@ -1068,8 +1129,8 @@ function renderSyncBar(){
   if(!currentUser){bar.style.display='none';return;}
   bar.style.display='flex';bar.className='sync-bar';
   if(syncStatus==='saving'){bar.classList.add('saving');bar.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4m-7.07-3.93l2.83-2.83m8.48-8.48l2.83-2.83M2 12h4m12 0h4m-3.93 7.07l-2.83-2.83M7.76 7.76L4.93 4.93"/></svg> Salvataggio in corso...';}
-  else if(syncStatus==='synced'){bar.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg> Dati sincronizzati <span style="margin-left:8px;color:#0c5460;cursor:pointer;text-decoration:underline;font-size:10px" onclick="App.forceSync()">Forza sync</span>';}
-  else if(syncStatus==='error'){bar.classList.add('error');bar.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Errore di sincronizzazione <span style="margin-left:8px;color:#721c24;cursor:pointer;text-decoration:underline;font-size:10px;font-weight:700" onclick="App.forceSync()">Riprova</span>';}
+  else if(syncStatus==='synced'){var classInfo=Object.keys(classes).length;bar.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg> Sincronizzato ('+classInfo+' classi) <span style="margin-left:6px;color:#0c5460;cursor:pointer;text-decoration:underline;font-size:10px" onclick="App.forceSync()">Forza sync</span>';}
+  else if(syncStatus==='error'){bar.classList.add('error');bar.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Errore sync <span style="margin-left:6px;color:#721c24;cursor:pointer;text-decoration:underline;font-size:10px;font-weight:700" onclick="App.forceSync()">Riprova</span>';}
   else{bar.style.display='none';}
 }
 
@@ -1117,7 +1178,7 @@ function handleLogin(){
       // Prova a salvare su Firestore (fire and forget - non bloccare il logout)
       try{
         if(db&&uid){
-          db.collection('users').doc(uid).set({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()}).catch(function(err){console.error('[LOGOUT] Firestore save failed:',err);});
+          db.collection('registro_presenze').doc('rp_data_'+uid).set({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()}).catch(function(err){console.error('[LOGOUT] Firestore save failed:',err);});
         }
       }catch(e){console.error('[LOGOUT] Firestore error:',e);}
       // Fai logout SUBITO - non aspettare Firestore
