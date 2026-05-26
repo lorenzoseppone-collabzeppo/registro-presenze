@@ -609,7 +609,11 @@ function render(){
   html+='</div>';
   // Daily notes
   var todayNote=dayNotes[getCurrentDateKey()]||'';
-  html+='<div style="margin-top:8px"><textarea id="dayNoteInput" placeholder="Note del giorno..." style="width:100%;min-height:36px;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;font-family:inherit;resize:vertical;outline:none;color:#333;background:'+(dayOff?'#f5f5f5':'white')+'" oninput="App.updateDayNote(this.value)" '+(dayOff?'disabled':'')+'>'+esc(todayNote)+'</textarea></div>';
+  var noteDisabled=dayOff||!currentUser;
+  var notePlaceholder=currentUser?'Note del giorno...':'Effettua il login per salvare le note';
+  html+='<div style="margin-top:8px">';
+  if(!currentUser){html+='<div style="font-size:10px;color:#dc3545;font-weight:600;margin-bottom:3px;text-align:center">⚠ Le note si salvano solo col login</div>';}
+  html+='<textarea id="dayNoteInput" placeholder="'+notePlaceholder+'" style="width:100%;min-height:36px;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;font-family:inherit;resize:vertical;outline:none;color:#333;background:'+(noteDisabled?'#f5f5f5':'white')+'" oninput="App.updateDayNote(this.value)" '+(noteDisabled?'disabled':'')+'>'+esc(todayNote)+'</textarea></div>';
   html+='</div>';
 
   html+='<div class="card"><div class="card-label">RICERCA BAMBINO</div>';
@@ -824,9 +828,12 @@ function renderChildDetail(idx){
 
   // Note per bambino
   var childNote=childNotes[idx]||'';
+  var childNoteDisabled=!currentUser;
+  var childNotePlaceholder=currentUser?'Scrivi una nota per questo bambino...':'Effettua il login per salvare le note';
   html+='<div class="deleghe-box" style="background:#fff8e1">';
   html+='<div class="deleghe-box-title" style="color:#f57f17"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f57f17" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Note</div>';
-  html+='<textarea id="childNoteInput" placeholder="Scrivi una nota per questo bambino..." style="width:100%;min-height:48px;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;outline:none;color:#333" oninput="App.updateChildNote('+idx+',this.value)">'+esc(childNote)+'</textarea>';
+  if(!currentUser){html+='<div style="font-size:10px;color:#dc3545;font-weight:600;margin-bottom:6px;text-align:center">⚠ Le note si salvano solo col login</div>';}
+  html+='<textarea id="childNoteInput" placeholder="'+childNotePlaceholder+'" style="width:100%;min-height:48px;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;outline:none;color:#333;background:'+(childNoteDisabled?'#f5f5f5':'white')+'" oninput="App.updateChildNote('+idx+',this.value)" '+(childNoteDisabled?'disabled':'')+'>'+esc(childNote)+'</textarea>';
   html+='</div>';
 
   html+='<button class="child-detail-close" onclick="App.closeChildDetail()">Chiudi</button>';
