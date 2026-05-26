@@ -354,11 +354,14 @@ function resetAllData(){
 
 function saveState(){
   saveCurrentDateData();
-  try{localStorage.setItem(getStorageKey(),JSON.stringify({children:children,dateData:dateData,childDiets:childDiets,childGender:childGender,childDeleghe:childDeleghe,childContatti:childContatti,childLastModified:childLastModified,childAge:childAge,sortMode:sortMode,currentDate:dateToInput(currentDate),className:className,schoolName:schoolName,teacher1:teacher1,teacher2:teacher2}));}catch(e){}
-  saveToFirestore();
+  if(currentUser){
+    try{localStorage.setItem(getStorageKey(),JSON.stringify({children:children,dateData:dateData,childDiets:childDiets,childGender:childGender,childDeleghe:childDeleghe,childContatti:childContatti,childLastModified:childLastModified,childAge:childAge,sortMode:sortMode,currentDate:dateToInput(currentDate),className:className,schoolName:schoolName,teacher1:teacher1,teacher2:teacher2}));}catch(e){}
+    saveToFirestore();
+  }
 }
 
 function loadState(){
+  if(!currentUser) return;
   try{
     var d=JSON.parse(localStorage.getItem(getStorageKey()));
     if(d){
@@ -466,7 +469,6 @@ function initFirebase(){
         try{localStorage.removeItem('rp_data');}catch(e){}
         try{if(previousUser){localStorage.removeItem('rp_data_'+previousUser.uid);}}catch(e2){}
         resetAllData();
-        loadState();
         syncStatus='idle';render();
       }
     });
@@ -1072,7 +1074,6 @@ window.App={
   }
 };
 
-loadState();
 initFirebase();
 render();
 
