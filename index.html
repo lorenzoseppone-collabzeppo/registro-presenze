@@ -85,7 +85,12 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .child-row.male-row{background:#eaf3fb}
 .child-row.female-row{background:#fdeef3}
 .child-name-input{font-size:13px;font-weight:500;border:1.5px solid #007bff;border-radius:4px;padding:2px 4px;outline:none;background:white;font-family:inherit;min-width:0;width:100%}
-.check-cell{display:flex;align-items:center;justify-content:center}
+.check-cell{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.pct-label{font-size:8px;font-weight:700;line-height:1;letter-spacing:-0.3px;white-space:nowrap}
+.pct-label.pct-green{color:#28a745}
+.pct-label.pct-orange{color:#e67e00}
+.pct-label.pct-blue{color:#007bff}
+.pct-label.pct-zero{color:#ccc}
 .check-cell input[type=checkbox]{width:16px;height:16px;accent-color:#28a745;cursor:pointer}
 .select-all-check{width:16px!important;height:16px!important;accent-color:#28a745;cursor:pointer}
 .pre-btn,.post-btn{padding:4px 4px;border-radius:6px;font-size:9px;font-weight:600;cursor:pointer;width:42px;text-align:center;font-family:inherit;transition:all 0.1s}
@@ -186,8 +191,8 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .stat-value{font-size:36px;font-weight:700;line-height:1}
 .google-icon{display:inline-flex;vertical-align:middle}
 @media print{body{background:white!important;background-image:none!important}.btn,.btn-row,.auth-bar,.sync-bar,.search-box,.arrow-btn,.diet-btn{display:none!important}.header-icon,.user-badge{display:none!important}.card,.roster,.stat-card{box-shadow:none!important;border:1px solid #eee}}
-@media(min-width:768px){.app{max-width:900px;padding:24px}.header{padding:28px 32px}.header-icon{font-size:56px}.school-name{font-size:13px}.class-name{font-size:26px}.class-sub{font-size:15px}.teacher-name{font-size:14px}.teacher-field{font-size:13px}.child-name-badge{font-size:15px;padding:8px 14px}.age-circle{width:30px;height:30px;font-size:14px}.roster-header{grid-template-columns:1fr 36px 52px 56px 56px 56px;gap:6px;padding:12px 16px}.child-row{grid-template-columns:1fr 36px 52px 56px 56px 56px;gap:6px;padding:10px 16px}.pre-btn,.post-btn{width:48px;font-size:11px;padding:5px 6px}.diet-btn{width:28px;height:28px;font-size:14px}.check-cell input[type=checkbox]{width:20px;height:20px}.btn{padding:10px 18px;font-size:14px}.stat-value{font-size:42px}.card{padding:20px}}
-@media(max-width:400px){.roster-header{grid-template-columns:1fr 26px 36px 40px 40px 40px}.child-row{grid-template-columns:1fr 26px 36px 40px 40px 40px}.child-name-badge{font-size:12px;padding:5px 4px}.age-circle{width:22px;height:22px;font-size:8px}.pre-btn,.post-btn{width:34px;font-size:8px;padding:3px 3px}.diet-btn{width:20px;height:20px;font-size:10px}.check-cell input[type=checkbox]{width:14px;height:14px}}
+@media(min-width:768px){.app{max-width:900px;padding:24px}.header{padding:28px 32px}.header-icon{font-size:56px}.school-name{font-size:13px}.class-name{font-size:26px}.class-sub{font-size:15px}.teacher-name{font-size:14px}.teacher-field{font-size:13px}.child-name-badge{font-size:15px;padding:8px 14px}.age-circle{width:30px;height:30px;font-size:14px}.roster-header{grid-template-columns:1fr 36px 52px 56px 56px 56px;gap:6px;padding:12px 16px}.child-row{grid-template-columns:1fr 36px 52px 56px 56px 56px;gap:6px;padding:10px 16px}.pre-btn,.post-btn{width:48px;font-size:11px;padding:5px 6px}.diet-btn{width:28px;height:28px;font-size:14px}.check-cell input[type=checkbox]{width:20px;height:20px}.pct-label{font-size:9px}.btn{padding:10px 18px;font-size:14px}.stat-value{font-size:42px}.card{padding:20px}}
+@media(max-width:400px){.roster-header{grid-template-columns:1fr 26px 36px 40px 40px 40px}.child-row{grid-template-columns:1fr 26px 36px 40px 40px 40px}.child-name-badge{font-size:12px;padding:5px 4px}.age-circle{width:22px;height:22px;font-size:8px}.pre-btn,.post-btn{width:34px;font-size:8px;padding:3px 3px}.diet-btn{width:20px;height:20px;font-size:10px}.check-cell input[type=checkbox]{width:14px;height:14px}.pct-label{font-size:6px}}
 </style>
 </head>
 <body>
@@ -647,12 +652,47 @@ function render(){
   if(dayOff){html+='<div style="text-align:center;padding:20px;color:#999;font-size:13px;font-style:italic">'+(isWeekend()?'Weekend \u2014 nessuna presenza':'Giorno festivo \u2014 nessuna presenza')+'</div>';}
 
   var filtered=getFilteredChildren();
+  // Calculate monthly percentages per child
+  var cm=currentDate.getMonth();var cy2=currentDate.getFullYear();
+  var daysInMonth=new Date(cy2,cm+1,0).getDate();
+  var currentDay=currentDate.getDate();
+  var schoolDaysSoFar=0;
+  for(var sd=1;sd<=Math.min(daysInMonth,currentDay);sd++){
+    var sdDate=new Date(cy2,cm,sd);
+    var sdDay=sdDate.getDay();
+    if(sdDay!==0&&sdDay!==6){
+      var sdKey=cy2+'-'+String(cm+1).padStart(2,'0')+'-'+String(sd).padStart(2,'0');
+      if(!holidays[sdKey]) schoolDaysSoFar++;
+    }
+  }
+  if(schoolDaysSoFar===0) schoolDaysSoFar=1;
+  var mPctP=[];var mPctPre=[];var mPctPost=[];
+  for(var mpi=0;mpi<children.length;mpi++){
+    var mpCount=0;var mpreCount=0;var mpostCount=0;
+    for(var md=1;md<=Math.min(daysInMonth,currentDay);md++){
+      var mdKey=cy2+'-'+String(cm+1).padStart(2,'0')+'-'+String(md).padStart(2,'0');
+      var mdd=dateData[mdKey];
+      if(mdd){
+        if(mdd.presenze&&mdd.presenze[mpi]) mpCount++;
+        if(mdd.pre&&mdd.pre[mpi]) mpreCount++;
+        if(mdd.post&&mdd.post[mpi]) mpostCount++;
+      }
+    }
+    if(hasKey(presenze,mpi)) mpCount++;
+    if(hasKey(pre,mpi)) mpreCount++;
+    if(hasKey(post,mpi)) mpostCount++;
+    mPctP[mpi]=Math.round(mpCount/schoolDaysSoFar*100);
+    mPctPre[mpi]=Math.round(mpreCount/schoolDaysSoFar*100);
+    mPctPost[mpi]=Math.round(mpostCount/schoolDaysSoFar*100);
+  }
+
   for(var fi=0;fi<filtered.length;fi++){
     var idx=filtered[fi].i;var name=filtered[fi].name;
     var hasDiet=childDiets[idx]&&childDiets[idx].type&&childDiets[idx].type!=='nessuna';
     var dietLabel=getDietLabel(idx);
     var dietTagClass=hasDiet?getDietTagClass(childDiets[idx].type):'';
     var gClass=getGenderClass(idx);
+    var pctP=mPctP[idx];var pctPre=mPctPre[idx];var pctPost=mPctPost[idx];
     html+='<div class="child-row '+gClass+'-row" data-name="'+esc(name.toLowerCase())+'"><div class="child-info">';
     if(editingChild===idx){html+='<input class="child-name-input" id="childInput" value="'+esc(editValue)+'" onblur="App.finishEditChild()" onkeydown="if(event.key===\'Enter\')App.finishEditChild();if(event.key===\'Escape\')App.cancelEditChild()"/>';}
     else{
@@ -664,13 +704,13 @@ function render(){
     html+='<div class="age-cell"><div class="age-circle '+(age?'has-age':'')+'" onclick="App.editAge('+idx+')" title="Clicca per inserire età">'+(age?esc(String(age)):'-')+'</div></div>';
     html+='<div class="diet-cell"><button class="diet-btn '+(hasDiet?'has-diet':'')+'" onclick="App.openDietModal('+idx+')" title="Dieta">\ud83c\udf7d</button></div>';
     if(dayOff){
-      html+='<div class="check-cell"><input type="checkbox" disabled style="opacity:0.3"/></div>';
-      html+='<div class="check-cell"><button class="pre-btn" disabled style="opacity:0.3;cursor:not-allowed">PRE</button></div>';
-      html+='<div class="check-cell"><button class="post-btn" disabled style="opacity:0.3;cursor:not-allowed">POST</button></div>';
+      html+='<div class="check-cell"><span class="pct-label '+(pctP>0?'pct-green':'pct-zero')+'">'+pctP+'%</span><input type="checkbox" disabled style="opacity:0.3"/></div>';
+      html+='<div class="check-cell"><span class="pct-label '+(pctPre>0?'pct-orange':'pct-zero')+'">'+pctPre+'%</span><button class="pre-btn" disabled style="opacity:0.3;cursor:not-allowed">PRE</button></div>';
+      html+='<div class="check-cell"><span class="pct-label '+(pctPost>0?'pct-blue':'pct-zero')+'">'+pctPost+'%</span><button class="post-btn" disabled style="opacity:0.3;cursor:not-allowed">POST</button></div>';
     }else{
-      html+='<div class="check-cell"><input type="checkbox" '+(hasKey(presenze,idx)?'checked':'')+' onchange="App.togglePresenza('+idx+')"/></div>';
-      html+='<div class="check-cell"><button class="pre-btn '+(hasKey(pre,idx)?'active':'')+'" onclick="App.togglePre('+idx+')">PRE</button></div>';
-      html+='<div class="check-cell"><button class="post-btn '+(hasKey(post,idx)?'active':'')+'" onclick="App.togglePost('+idx+')">POST</button></div>';
+      html+='<div class="check-cell"><span class="pct-label '+(pctP>0?'pct-green':'pct-zero')+'">'+pctP+'%</span><input type="checkbox" '+(hasKey(presenze,idx)?'checked':'')+' onchange="App.togglePresenza('+idx+')"/></div>';
+      html+='<div class="check-cell"><span class="pct-label '+(pctPre>0?'pct-orange':'pct-zero')+'">'+pctPre+'%</span><button class="pre-btn '+(hasKey(pre,idx)?'active':'')+'" onclick="App.togglePre('+idx+')">PRE</button></div>';
+      html+='<div class="check-cell"><span class="pct-label '+(pctPost>0?'pct-blue':'pct-zero')+'">'+pctPost+'%</span><button class="post-btn '+(hasKey(post,idx)?'active':'')+'" onclick="App.togglePost('+idx+')">POST</button></div>';
     }
     html+='</div>';
   }
