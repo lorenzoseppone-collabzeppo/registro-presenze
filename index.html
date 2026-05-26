@@ -743,22 +743,29 @@ function initFirebase(){
     auth.onAuthStateChanged(function(u){
       var previousUser=currentUser;
       currentUser=u;loginLoading=false;
+      // Controlla se siamo in fase di logout (flag variabile o sessionStorage)
+      var isLoggingOut=manualLogout;
+      if(!isLoggingOut){try{var lt=parseInt(sessionStorage.getItem('rp_logging_out'))||0;if(lt&&(Date.now()-lt<60000)){isLoggingOut=true;manualLogout=true;}}catch(e){}}
       if(u){
         // Se l'utente ha appena fatto logout manuale, non ri-loggare
-        if(manualLogout){
+        if(isLoggingOut){
           currentUser=null;
-          manualLogout=false;
+          // NON resettare manualLogout qui! Deve restare true per 60 secondi
+          // per prevenire ri-autenticazione da parte di Firebase
           resetAllData();
           syncStatus='idle';render();
           return;
         }
+        // Login normale - pulisci flag logout
+        manualLogout=false;
+        try{sessionStorage.removeItem('rp_logging_out');}catch(e3){}
         if(previousUser&&previousUser.uid!==u.uid){
           resetAllData();
         }
         loadFromFirestore(u.uid);
       }else{
-        // Utente disconnesso - pulisci tutto
-        manualLogout=false;
+        // Utente disconnesso - NON resettare manualLogout qui
+        // Verrà resettato dal timeout in handleLogin() o al prossimo login
         try{localStorage.removeItem('rp_data');}catch(e){}
         try{if(previousUser){localStorage.removeItem('rp_data_'+previousUser.uid);}}catch(e2){}
         resetAllData();
@@ -776,26 +783,43 @@ function handleLogin(){
     if(confirm('Vuoi disconnettere l\'account "'+(currentUser.displayName||currentUser.email)+'"?\n\nI dati rimarranno salvati nel tuo account Google.')){
       var uid=currentUser.uid;
       saveCurrentClassData();
-      // Salva subito su Firestore prima del logout
+      // Salva subito su Firestore prima del logout (deep copy dei dati)
       if(db&&uid){
-        var data={classes:classes,currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+        var data={classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
         db.collection('users').doc(uid).set(data).catch(function(err){console.error('Pre-logout save error:',err);});
       }
       // Pulisci localStorage
       try{localStorage.removeItem('rp_data_'+uid);}catch(e){}
       try{localStorage.removeItem('rp_data');}catch(e){}
+      // Imposta flag logout - persiste per 60 secondi per prevenire ri-autenticazione
+      manualLogout=true;
+      try{sessionStorage.setItem('rp_logging_out',Date.now().toString());}catch(e){}
       // Azzera currentUser SUBITO e resetta dati
       currentUser=null;
       loginLoading=false;
-      manualLogout=true;
       resetAllData();
       render();
-      // Effettua il logout Firebase in background
-      auth.signOut().catch(function(err){
+      // Effettua il logout Firebase
+      auth.signOut().then(function(){
+        console.log('Firebase signOut OK');
+        // Mantieni manualLogout=true per 60 secondi, poi pulisci
+        setTimeout(function(){
+          manualLogout=false;
+          try{sessionStorage.removeItem('rp_logging_out');}catch(ex){}
+        },60000);
+      }).catch(function(err){
         console.error('signOut error:',err);
+        // Anche se signOut fallisce, mantieni il flag per 60 secondi
+        setTimeout(function(){
+          manualLogout=false;
+          try{sessionStorage.removeItem('rp_logging_out');}catch(ex){}
+        },60000);
       });
     }
   }else{
+    // Login - pulisci flag logout
+    manualLogout=false;
+    try{sessionStorage.removeItem('rp_logging_out');}catch(e){}
     loginLoading=true;render();
     var provider=new firebase.auth.GoogleAuthProvider();
     auth.signInWithPopup(provider).catch(function(error){
