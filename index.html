@@ -1027,6 +1027,12 @@ function render(){
     if(editingTeacher2){html+='<input class="teacher-name-input" id="teacher2Input" value="'+esc(teacher2)+'" onblur="App.finishEditTeacher2()" onkeydown="if(event.key===\'Enter\')App.finishEditTeacher2()"/>';}
     else{html+='<div class="teacher-name" onclick="App.startEditTeacher2()" title="Clicca per modificare">'+esc(teacher2||'—')+'</div>';}
     html+='</div>';
+    // PIN Classe + Bottone Modifica PIN
+    var classPinVal=(currentClassId&&classes[currentClassId])?(classes[currentClassId].pin||''):'';
+    html+='<div class="teacher-field"><span>PIN:</span>';
+    html+='<div class="teacher-name" style="cursor:default;color:'+(classPinVal?'#ffd700':'#ff6b6b')+'">'+(classPinVal?classPinVal.replace(/./g,'\u2022'):'non impostato')+'</div>';
+    html+='</div>';
+    html+='<button onclick="App.changeClassPin()" style="display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:8px;border:1.5px solid '+(classPinVal?'#ffd700':'#ff6b6b')+';background:'+(classPinVal?'rgba(255,215,0,0.15)':'rgba(255,107,107,0.15)')+';color:'+(classPinVal?'#ffd700':'#ff6b6b')+';font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:0.3px;transition:all 0.15s" title="Modifica PIN classe"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> MODIFICA PIN</button>';
   }
   html+='</div>';
   html+='</div>';
@@ -1077,7 +1083,7 @@ function render(){
   html+='<div class="class-tab-add" onclick="App.addClass()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Aggiungi Classe</div>';
   if(currentUser&&currentClassId){
     if(isCoordinatrice()){html+='<div class="class-tab" style="border-color:rgba(255,255,255,0.5);color:white;font-size:11px" onclick="App.changeCoordinatricePin()" title="Modifica PIN COORDINATRICE (richiede PIN attuale)">\ud83d\udd12 MODIFICA PIN</div>';}
-    else{html+='<div class="class-tab" style="border-color:rgba(255,255,255,0.5);color:white;font-size:11px" onclick="App.managePin()" title="Gestisci PIN classe">\ud83d\udd12 PIN</div>';}
+    else{html+='<div class="class-tab" style="border-color:rgba(255,255,255,0.5);color:white;font-size:11px" onclick="App.changeClassPin()" title="Modifica PIN classe (richiede PIN attuale)">\ud83d\udd12 MODIFICA PIN</div>';}
   }
   html+='</div>';
 
@@ -1619,6 +1625,49 @@ window.App={
     render();
     if(pinValue){alert('PIN COORDINATRICE modificato con successo!');}
     else{alert('PIN COORDINATRICE rimosso.');}
+  },
+  changeClassPin:function(){
+    if(!currentClassId||!classes[currentClassId]||isCoordinatrice()) return;
+    var currentPin=classes[currentClassId].pin||'';
+    var cName=classes[currentClassId].name||'Classe';
+    // Se non c'è un PIN impostato, chiedi di impostarlo direttamente
+    if(!currentPin){
+      var newPin=prompt('Nessun PIN impostato per '+cName.toUpperCase()+'.\n\nInserisci un nuovo PIN (4-6 cifre):');
+      if(newPin===null) return;
+      if(!/^\d{4,6}$/.test(newPin.trim())){alert('Il PIN deve essere di 4-6 cifre.');return;}
+      classes[currentClassId].pin=newPin.trim();
+      unlockedClasses[currentClassId]=true;
+      savePinsToLocalStorage();
+      saveCurrentClassData();
+      try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
+      saveToFirestoreNow();
+      updateClassLockState();
+      render();
+      alert('PIN per '+cName.toUpperCase()+' impostato!');
+      return;
+    }
+    // Se c'è già un PIN, chiedi prima il vecchio PIN
+    var oldPin=prompt('Inserisci il PIN attuale di '+cName.toUpperCase()+' per modificarlo:');
+    if(oldPin===null) return;
+    if(oldPin!==currentPin){
+      alert('PIN attuale errato. Non puoi modificare il PIN di '+cName.toUpperCase()+'.');
+      return;
+    }
+    // Vecchio PIN corretto, chiedi il nuovo
+    var newPin2=prompt('PIN attuale corretto!\n\nInserisci il nuovo PIN per '+cName.toUpperCase()+' (4-6 cifre),\no lascia vuoto per rimuoverlo:');
+    if(newPin2===null) return;
+    if(newPin2.trim()&&!/^\d{4,6}$/.test(newPin2.trim())){alert('Il PIN deve essere di 4-6 cifre.');return;}
+    var pinValue=newPin2.trim();
+    classes[currentClassId].pin=pinValue;
+    unlockedClasses[currentClassId]=true;
+    savePinsToLocalStorage();
+    saveCurrentClassData();
+    try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
+    saveToFirestoreNow();
+    updateClassLockState();
+    render();
+    if(pinValue){alert('PIN per '+cName.toUpperCase()+' modificato con successo!');}
+    else{alert('PIN per '+cName.toUpperCase()+' rimosso.');}
   },
   addChild:function(){
     var name=prompt('Nome del nuovo bambino\n(es. Rossi Luca):');
