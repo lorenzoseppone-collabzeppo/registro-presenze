@@ -209,18 +209,18 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .sort-btn:hover{border-color:#999;color:#333}
 .sort-btn.active{border-color:#1a1a2e;background:#1a1a2e;color:white}
 .sort-btn:active{transform:scale(0.97)}
-.class-tabs{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:6px;padding:10px 14px;margin-bottom:10px;background:#7b2d8e;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.08);align-items:center}
-.class-tab{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:7px 10px;border-radius:8px;border:2px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.15);font-size:13px;font-weight:600;color:white;cursor:pointer;font-family:inherit;transition:all 0.15s;white-space:nowrap;text-align:center;width:100%}
+.class-tabs{display:flex;flex-direction:column;gap:5px;padding:10px 14px;margin-bottom:10px;background:#7b2d8e;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.class-tab{display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 12px;border-radius:8px;border:2px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.15);font-size:13px;font-weight:600;color:white;cursor:pointer;font-family:inherit;transition:all 0.15s;white-space:nowrap;text-align:center;width:100%}
 .class-tab:hover{border-color:rgba(255,255,255,0.5);background:rgba(255,255,255,0.25)}
 .class-tab.active{border-color:#ffd700;background:#1a1a2e;color:white}
 .class-tab:active{transform:scale(0.97)}
 .class-tab-del{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:none;background:rgba(255,255,255,0.15);color:rgba(255,255,255,0.7);font-size:13px;font-weight:700;cursor:pointer;padding:0;margin-left:2px;transition:all 0.15s;line-height:1}
 .class-tab.active .class-tab-del{background:rgba(255,255,255,0.2);color:rgba(255,255,255,0.7)}
 .class-tab-del:hover{background:#dc3545!important;color:white!important}
-.class-tab-add{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:7px 10px;border-radius:8px;border:2px dashed rgba(255,255,255,0.5);background:rgba(255,255,255,0.1);font-size:13px;font-weight:600;color:white;cursor:pointer;font-family:inherit;transition:all 0.15s;white-space:nowrap;text-align:center;width:100%}
+.class-tab-add{display:flex;align-items:center;justify-content:center;gap:4px;padding:8px 12px;border-radius:8px;border:2px dashed rgba(255,255,255,0.5);background:rgba(255,255,255,0.1);font-size:13px;font-weight:600;color:white;cursor:pointer;font-family:inherit;transition:all 0.15s;white-space:nowrap;text-align:center;width:100%}
 .class-tab-add:hover{border-color:white;background:rgba(255,255,255,0.2)}
 .class-tab-add:active{transform:scale(0.97)}
-.class-tabs-label{font-size:11px;font-weight:600;color:white;text-transform:uppercase;letter-spacing:0.3px;grid-column:1/-1}
+.class-tabs-label{font-size:11px;font-weight:600;color:white;text-transform:uppercase;letter-spacing:0.3px}
 .class-locked-overlay{position:relative;pointer-events:none;opacity:0.5}
 .class-locked-overlay .class-tabs,.class-locked-overlay .lock-bypass{pointer-events:auto;opacity:1}
 
@@ -1080,11 +1080,14 @@ function render(){
     html+='<button class="class-tab-del" onclick="event.stopPropagation();App.deleteClass(\''+cId+'\')" title="Elimina classe '+esc(cName.toUpperCase())+'">\u00d7</button>';
     html+='</div>';
   }
-  html+='<div class="class-tab-add" onclick="App.addClass()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Aggiungi Classe</div>';
+  // Riga in fondo: Aggiungi Classe + Modifica PIN affiancati
+  html+='<div style="display:flex;gap:6px;margin-top:4px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.15)">';
+  html+='<div class="class-tab-add" style="flex:1" onclick="App.addClass()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Aggiungi Classe</div>';
   if(currentUser&&currentClassId){
-    if(isCoordinatrice()){html+='<div class="class-tab" style="border-color:rgba(255,255,255,0.5);color:white;font-size:11px" onclick="App.changeCoordinatricePin()" title="Modifica PIN COORDINATRICE (richiede PIN attuale)">\ud83d\udd12 MODIFICA PIN</div>';}
-    else{html+='<div class="class-tab" style="border-color:rgba(255,255,255,0.5);color:white;font-size:11px" onclick="App.changeClassPin()" title="Modifica PIN classe (richiede PIN attuale)">\ud83d\udd12 MODIFICA PIN</div>';}
+    if(isCoordinatrice()){html+='<div class="class-tab" style="flex:1;border-color:rgba(255,255,255,0.5);color:white;font-size:11px" onclick="App.changeCoordinatricePin()" title="Modifica PIN COORDINATRICE (richiede PIN attuale)">\ud83d\udd12 MODIFICA PIN</div>';}
+    else{html+='<div class="class-tab" style="flex:1;border-color:rgba(255,255,255,0.5);color:white;font-size:11px" onclick="App.changeClassPin()" title="Modifica PIN classe (richiede PIN attuale)">\ud83d\udd12 MODIFICA PIN</div>';}
   }
+  html+='</div>';
   html+='</div>';
 
   // Locked class banner
