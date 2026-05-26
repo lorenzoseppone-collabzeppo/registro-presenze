@@ -543,6 +543,8 @@ function loadState(){
         currentClassId=d.currentClassId||'';
         if(d.schoolName) schoolName=d.schoolName;
         if(d.currentDate){ try{currentDate=new Date(d.currentDate+'T12:00:00');}catch(e){currentDate=new Date();} }
+        // Carica sempre i dati della classe corrente
+        if(currentClassId&&classes[currentClassId]){loadClassData(currentClassId);}
         ensureDefaultClass();
       }else{
         // OLD FORMAT - migrate to classes
@@ -603,6 +605,8 @@ function loadFromFirestore(uid){
           classes=d.classes;
           currentClassId=d.currentClassId||'';
           if(d.schoolName) schoolName=d.schoolName;
+          // Carica sempre i dati della classe corrente (per ripristinare teacher1, teacher2, className, ecc.)
+          if(currentClassId&&classes[currentClassId]){loadClassData(currentClassId);}
           ensureDefaultClass();
         }else{
           // OLD FORMAT - migrate
@@ -627,6 +631,8 @@ function loadFromFirestore(uid){
         var key=getCurrentDateKey();var dd=dateData[key];
         if(dd){presenze=dd.presenze||{};pre=dd.pre||{};post=dd.post||{};}
         else{presenze={};pre={};post={};}
+        // Sblocca sempre la classe corrente dopo il caricamento (non chiedere PIN al refresh)
+        if(currentClassId){unlockedClasses[currentClassId]=true;}
         // Save in new format
         try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:classes,currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
       }else{
