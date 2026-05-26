@@ -409,7 +409,30 @@ function rebuildCoordinatriceChildren(){
     if(sc.childAge&&sc.childAge[s.sourceIndex]) childAge[k]=sc.childAge[s.sourceIndex];
     if(sc.childNotes&&sc.childNotes[s.sourceIndex]) childNotes[k]=sc.childNotes[s.sourceIndex];
   }
-  dateData=c.dateData||{};
+  // Unisci dateData da tutte le classi: mappa indici sorgente -> indici COORDINATRICE
+  var mergedDateData={};
+  // Prima copia il dateData della COORDINATRICE stessa (se esiste)
+  if(c.dateData){
+    for(var dk in c.dateData){
+      if(c.dateData.hasOwnProperty(dk)) mergedDateData[dk]=JSON.parse(JSON.stringify(c.dateData[dk]));
+    }
+  }
+  // Poi sovrascrivi con i dateData delle singole classi (mappando gli indici)
+  for(var k3=0;k3<newChildren.length;k3++){
+    var s3=newSourceMap[k3];if(!s3) continue;
+    var sc3=classes[s3.classId];if(!sc3||!sc3.dateData) continue;
+    for(var dk2 in sc3.dateData){
+      if(!sc3.dateData.hasOwnProperty(dk2)) continue;
+      if(!mergedDateData[dk2]) mergedDateData[dk2]={presenze:{},pre:{},post:{}};
+      var srcDD=sc3.dateData[dk2];
+      var srcIdx=s3.sourceIndex;
+      if(srcDD.presenze&&srcDD.presenze[srcIdx]) mergedDateData[dk2].presenze[k3]=true;
+      if(srcDD.pre&&srcDD.pre[srcIdx]) mergedDateData[dk2].pre[k3]=true;
+      if(srcDD.post&&srcDD.post[srcIdx]) mergedDateData[dk2].post[k3]=true;
+    }
+  }
+  dateData=mergedDateData;
+  c.dateData=mergedDateData;
   holidays={};dayNotes={};
   className='COORDINATRICE';teacher1=c.teacher1||'';teacher2='';sortMode='default';
   var key=getCurrentDateKey();var dd=dateData[key];
@@ -481,9 +504,31 @@ function saveCurrentClassData(){
     classes[currentClassId].name='COORDINATRICE';
     classes[currentClassId].isCoordinatrice=true;
     classes[currentClassId].pin=classes[currentClassId].pin||'';
-    classes[currentClassId].dateData=JSON.parse(JSON.stringify(dateData));
     classes[currentClassId].teacher1=teacher1;
     classes[currentClassId].teacher2='';
+    // Propaga presenze/pre/post alle classi sorgente
+    if(classes[COORDINATRICE_ID]&&classes[COORDINATRICE_ID].childSourceMap){
+      var srcMap=classes[COORDINATRICE_ID].childSourceMap;
+      for(var dk in dateData){
+        if(!dateData.hasOwnProperty(dk)) continue;
+        var dd=dateData[dk];
+        for(var ci=0;ci<children.length;ci++){
+          var s=srcMap[ci];if(!s) continue;
+          var sc=classes[s.classId];if(!sc) continue;
+          if(!sc.dateData) sc.dateData={};
+          if(!sc.dateData[dk]) sc.dateData[dk]={presenze:{},pre:{},post:{}};
+          var srcIdx=s.sourceIndex;
+          if(dd.presenze&&dd.presenze[ci]) sc.dateData[dk].presenze[srcIdx]=true;
+          else if(sc.dateData[dk].presenze) delete sc.dateData[dk].presenze[srcIdx];
+          if(dd.pre&&dd.pre[ci]) sc.dateData[dk].pre[srcIdx]=true;
+          else if(sc.dateData[dk].pre) delete sc.dateData[dk].pre[srcIdx];
+          if(dd.post&&dd.post[ci]) sc.dateData[dk].post[srcIdx]=true;
+          else if(sc.dateData[dk].post) delete sc.dateData[dk].post[srcIdx];
+        }
+      }
+    }
+    // Non salvare dateData nella COORDINATRICE (viene ricostruito dalle classi)
+    classes[currentClassId].dateData={};
     return;
   }
   // Sync: usa sempre il nome salvato nella classe se diverso da className globale
