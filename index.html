@@ -836,10 +836,15 @@ function render(){
   html+='<div class="class-sub">REGISTRO DI CLASSE</div>';
   html+='<div class="header-teachers">';
   if(isCoordinatrice()){
-    // COORDINATRICE: un solo campo "Coordinatrice"
+    // COORDINATRICE: un solo campo "Coordinatrice" + campo PIN
     html+='<div class="teacher-field"><span>Coordinatrice:</span>';
     if(editingTeacher1){html+='<input class="teacher-name-input" id="teacher1Input" value="'+esc(teacher1)+'" onblur="App.finishEditTeacher1()" onkeydown="if(event.key===\'Enter\')App.finishEditTeacher1()"/>';}
     else{html+='<div class="teacher-name" onclick="App.startEditTeacher1()" title="Clicca per modificare">'+esc(teacher1||'—')+'</div>';}
+    html+='</div>';
+    // PIN Coordinatrice
+    var coorPinVal=classes[COORDINATRICE_ID]?(classes[COORDINATRICE_ID].pin||''):'';
+    html+='<div class="teacher-field"><span>PIN:</span>';
+    html+='<div class="teacher-name" onclick="App.manageCoordinatricePin()" title="Clicca per gestire il PIN" style="cursor:pointer">'+(coorPinVal?coorPinVal.replace(/./g,'\u2022'):'—')+'</div>';
     html+='</div>';
   } else {
     html+='<div class="teacher-field"><span>Insegnante 1:</span>';
@@ -1318,6 +1323,20 @@ window.App={
     updateClassLockState();
     saveState();render();
     alert(newPin.trim()?'PIN impostato con successo! La classe ora richiede il PIN per l\'accesso.':'PIN rimosso. La classe ora e accessibile liberamente.');
+  },
+  manageCoordinatricePin:function(){
+    if(!classes[COORDINATRICE_ID]) return;
+    if(classLocked){alert('Sblocca prima la classe per gestire il PIN.');return;}
+    var currentPin=classes[COORDINATRICE_ID].pin||'';
+    var msg=currentPin?'La COORDINATRICE ha un PIN impostato.\n\nInserisci il nuovo PIN per cambiarlo (4-6 cifre),\no lascia vuoto per rimuoverlo:':'La COORDINATRICE non ha un PIN.\n\nInserisci un PIN (4-6 cifre) per proteggere l\'accesso alla COORDINATRICE:';
+    var newPin=prompt(msg);
+    if(newPin===null) return;
+    if(newPin.trim()&&!/^\d{4,6}$/.test(newPin.trim())){alert('Il PIN deve essere di 4-6 cifre.');return;}
+    classes[COORDINATRICE_ID].pin=newPin.trim();
+    if(!newPin.trim()){unlockedClasses[COORDINATRICE_ID]=true;}
+    updateClassLockState();
+    saveState();render();
+    alert(newPin.trim()?'PIN COORDINATRICE impostato con successo!':'PIN COORDINATRICE rimosso. La COORDINATRICE ora è accessibile liberamente.');
   },
   addChild:function(){
     var name=prompt('Nome del nuovo bambino\n(es. Rossi Luca):');
