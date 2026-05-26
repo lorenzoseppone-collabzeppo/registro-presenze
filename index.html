@@ -1155,7 +1155,7 @@ function render(){
       if(mcId===COORDINATRICE_ID) continue;
       var mcName=classes[mcId].name||'Classe';
       var mcMsgs=classes[mcId].messages||[];
-      html+='<div class="msg-box">';
+      html+='<div class="msg-box" id="msgBox_'+mcId+'">';
       html+='<div class="msg-box-header"><span class="msg-box-class">'+esc(mcName.toUpperCase())+'</span><span class="msg-box-count">'+mcMsgs.length+' msg</span></div>';
       if(mcMsgs.length===0){
         html+='<div class="msg-empty">Nessuna comunicazione</div>';
@@ -2579,11 +2579,18 @@ window.App={
     if(!text) return;
     if(!classes[classId].messages) classes[classId].messages=[];
     classes[classId].messages.push({text:text,timestamp:Date.now()});
-    input.value='';
+    // Render subito per mostrare il messaggio
+    render();
+    // Scroll alla sezione messaggi di questa classe
+    var msgBox=document.getElementById('msgBox_'+classId);
+    if(msgBox){msgBox.scrollIntoView({behavior:'smooth',block:'center'});}
+    // Focus sull'input per scrivere un altro messaggio
+    var newInput=document.getElementById('msgInput_'+classId);
+    if(newInput){newInput.focus();}
+    // Salva i dati dopo il render
     saveCurrentClassData();
     try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
     saveToFirestoreNow();
-    render();
   },
   deleteMessage:function(classId,msgIdx){
     if(!classId||!classes[classId]) return;
@@ -2592,10 +2599,15 @@ window.App={
     var msgText=classes[classId].messages[msgIdx].text;
     if(!confirm('Cancellare la comunicazione:\n"'+msgText+'"\n\nVerrà cancellata anche nella classe di riferimento.')) return;
     classes[classId].messages.splice(msgIdx,1);
+    // Render subito per aggiornare la lista messaggi
+    render();
+    // Scroll alla sezione messaggi di questa classe
+    var msgBox=document.getElementById('msgBox_'+classId);
+    if(msgBox){msgBox.scrollIntoView({behavior:'smooth',block:'center'});}
+    // Salva i dati dopo il render
     saveCurrentClassData();
     try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
     saveToFirestoreNow();
-    render();
   }
 };
 
