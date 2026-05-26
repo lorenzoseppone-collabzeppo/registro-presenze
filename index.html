@@ -490,12 +490,16 @@ function ensureDefaultClass(){
 
 function updateClassLockState(){
   if(!currentClassId||!classes[currentClassId]){classLocked=false;return;}
+  // Se c'è solo 1 classe, il PIN non serve mai
+  if(Object.keys(classes).length<=1){classLocked=false;unlockedClasses[currentClassId]=true;return;}
   var pin=classes[currentClassId].pin||'';
   classLocked=pin&&pin.length>0&&!unlockedClasses[currentClassId];
 }
 
 function tryUnlockClass(classId){
   if(!classes[classId]) return false;
+  // Se c'è solo 1 classe, nessun PIN richiesto
+  if(Object.keys(classes).length<=1){unlockedClasses[classId]=true;return true;}
   var pin=classes[classId].pin||'';
   if(!pin){unlockedClasses[classId]=true;return true;}
   if(unlockedClasses[classId]) return true;
@@ -768,7 +772,7 @@ function render(){
     html+='</div>';
   }
   html+='<div class="class-tab-add" onclick="App.addClass()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Aggiungi Classe</div>';
-  if(currentUser&&currentClassId){html+='<div class="class-tab" style="border-color:#ffc107;background:#fff8e1;color:#856404;font-size:11px" onclick="App.managePin()" title="Gestisci PIN classe">\ud83d\udd12 PIN</div>';}
+  if(currentUser&&currentClassId&&Object.keys(classes).length>1){html+='<div class="class-tab" style="border-color:#ffc107;background:#fff8e1;color:#856404;font-size:11px" onclick="App.managePin()" title="Gestisci PIN classe">\ud83d\udd12 PIN</div>';}
   html+='</div>';
 
   // Locked class banner
@@ -1092,15 +1096,20 @@ window.App={
     var name=prompt('Nome della nuova classe\n(es. Farfalle, Cuori, Stelle):');
     if(!name||!name.trim()) return;
     name=name.trim().toUpperCase();
-    var pin=prompt('Crea un PIN per questa classe (4-6 cifre):\nIl PIN sarà richiesto per accedere a questa classe.');
-    if(pin===null) return;
-    if(!pin.trim()||!/^\d{4,6}$/.test(pin.trim())){alert('Il PIN è obbligatorio e deve essere di 4-6 cifre.');return;}
+    var isFirstClass=Object.keys(classes).length===0;
+    var pin='';
+    if(!isFirstClass){
+      pin=prompt('Crea un PIN per questa classe (4-6 cifre):\nIl PIN sarà richiesto per accedere a questa classe.');
+      if(pin===null) return;
+      if(!pin.trim()||!/^\d{4,6}$/.test(pin.trim())){alert('Il PIN è obbligatorio e deve essere di 4-6 cifre.');return;}
+      pin=pin.trim();
+    }
     saveCurrentClassData();
     var newId=generateClassId();
     classes[newId]={
       id:newId,
       name:name,
-      pin:pin.trim(),
+      pin:pin,
       children:[],
       childDiets:{},childGender:{},childDeleghe:{},childContatti:{},
       childLastModified:{},childAge:{},childNotes:{},
@@ -1135,8 +1144,8 @@ window.App={
   switchClass:function(classId){
     if(classId===currentClassId) return;
     if(!tryUnlockClass(classId)) return;
-    // Ri-blocca la classe corrente quando si cambia: ogni accesso richiede il PIN
-    if(currentClassId&&classes[currentClassId]&&classes[currentClassId].pin){
+    // Ri-blocca la classe corrente quando si cambia: ogni accesso richiede il PIN (solo se ci sono più classi)
+    if(Object.keys(classes).length>1&&currentClassId&&classes[currentClassId]&&classes[currentClassId].pin){
       delete unlockedClasses[currentClassId];
     }
     saveCurrentClassData();
