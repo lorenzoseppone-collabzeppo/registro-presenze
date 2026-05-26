@@ -748,11 +748,7 @@ function initFirebase(){
         }
         loadFromFirestore(u.uid);
       }else{
-        // Prima di resettare, salva i dati dell'utente precedente su Firestore
-        if(previousUser&&classes&&Object.keys(classes).length>0){
-          saveCurrentClassData();
-          doSaveToFirestore();
-        }
+        // Utente disconnesso - pulisci tutto
         try{localStorage.removeItem('rp_data');}catch(e){}
         try{if(previousUser){localStorage.removeItem('rp_data_'+previousUser.uid);}}catch(e2){}
         resetAllData();
@@ -767,7 +763,30 @@ function handleLogin(){
   if(typeof firebase==='undefined'){alert('Firebase non caricato. Ricarica la pagina.');return;}
   var auth=firebase.auth();
   if(currentUser){
-    if(confirm('Vuoi disconnettere l\'account "'+(currentUser.displayName||currentUser.email)+'"?\n\nI dati rimarranno salvati nel tuo account Google.')){saveCurrentClassData();doSaveToFirestore();auth.signOut().then(function(){try{localStorage.removeItem(getStorageKey());}catch(e){}resetAllData();render();});}
+    if(confirm('Vuoi disconnettere l\'account "'+(currentUser.displayName||currentUser.email)+'"?\n\nI dati rimarranno salvati nel tuo account Google.')){
+      var uid=currentUser.uid;
+      saveCurrentClassData();
+      // Salva subito su Firestore prima del logout
+      if(db&&uid){
+        var data={classes:classes,currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+        db.collection('users').doc(uid).set(data).catch(function(err){console.error('Pre-logout save error:',err);});
+      }
+      // Pulisci localStorage subito
+      try{localStorage.removeItem('rp_data_'+uid);}catch(e){}
+      try{localStorage.removeItem('rp_data');}catch(e){}
+      // Effettua il logout
+      auth.signOut().then(function(){
+        resetAllData();
+        render();
+      }).catch(function(err){
+        console.error('Logout error:',err);
+        // Forza il logout anche se signOut fallisce
+        currentUser=null;
+        resetAllData();
+        render();
+        alert('Disconnessione completata.');
+      });
+    }
   }else{
     loginLoading=true;render();
     var provider=new firebase.auth.GoogleAuthProvider();
