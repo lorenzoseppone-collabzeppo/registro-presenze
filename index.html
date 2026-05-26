@@ -357,7 +357,7 @@ function getStorageKey(){
 }
 
 function resetAllData(){
-  children=['Sofia Rossi','Leonardo Bianchi','Aurora Romano','Tommaso Ferrari','Giulia Esposito','Mattia Ricci','Alice Marino','Nicola Parisi','Elisa Benedetti','Simone Rinaldi','Beatrice Costa','Davide Moretti','Martina Barbieri','Federico Rizzo','Chiara Lombardi','Gabriele Gallo','Ginevra Conti','Alessandro De Luca','Lorenzo Greco','Emma Bruno','Pietro Colombo','Viola Fontana','Marco Villa','Camilla Russo','Edoardo Messina','Anna Serra','Filippo Mazza','Bianca Pellegrini','Luca Marchetti','Giorgia Ferretti'];
+  children=['SOFIA ROSSI','LEONARDO BIANCHI','AURORA ROMANO','TOMMASO FERRARI','GIULIA ESPOSITO','MATTIA RICCI','ALICE MARINO','NICOLA PARISI','ELISA BENEDETTI','SIMONE RINALDI','BEATRICE COSTA','DAVIDE MORETTI','MARTINA BARBIERI','FEDERICO RIZZO','CHIARA LOMBARDI','GABRIELE GALLO','GINEVRA CONTI','ALESSANDRO DE LUCA','LORENZO GRECO','EMMA BRUNO','PIETRO COLOMBO','VIOLA FONTANA','MARCO VILLA','CAMILLA RUSSO','EDOARDO MESSINA','ANNA SERRA','FILIPPO MAZZA','BIANCA PELLEGRINI','LUCA MARCHETTI','GIORGIA FERRETTI'];
   dateData={};presenze={};pre={};post={};childDiets={};childGender={};childDeleghe={};childContatti={};childAge={};childNotes={};
   holidays={};dayNotes={};
   className='Chioccioline';schoolName='Scuola dell\'Infanzia di Bonirola';teacher1='';teacher2='';
@@ -378,7 +378,7 @@ function loadState(){
   try{
     var d=JSON.parse(localStorage.getItem(getStorageKey()));
     if(d){
-      if(d.children) children=d.children;
+      if(d.children){children=d.children;for(var li=0;li<children.length;li++){children[li]=children[li].toUpperCase();}}
       if(d.dateData) dateData=d.dateData;
       if(d.childDiets) childDiets=d.childDiets;
       if(d.childGender) childGender=d.childGender;
@@ -429,7 +429,7 @@ function loadFromFirestore(uid){
     .then(function(doc){
       if(doc.exists){
         var d=doc.data();
-        if(d.children&&d.children.length>0) children=d.children;
+        if(d.children&&d.children.length>0){children=d.children;for(var ui=0;ui<children.length;ui++){children[ui]=children[ui].toUpperCase();}}
         if(d.className) className=d.className;
       if(d.schoolName) schoolName=d.schoolName;
       if(d.teacher1!==undefined) teacher1=d.teacher1;
@@ -869,7 +869,7 @@ window.App={
   startEditTeacher2:function(){editingTeacher2=true;render();},
   finishEditTeacher2:function(){var ti=document.getElementById('teacher2Input');if(ti)teacher2=ti.value.trim();editingTeacher2=false;saveState();render();},
   startEditChild:function(i){editingChild=i;editValue=children[i];render();},
-  finishEditChild:function(){var ci=document.getElementById('childInput');if(ci&&ci.value.trim()&&editingChild>=0){children[editingChild]=ci.value.trim();childLastModified[editingChild]=Date.now();}editingChild=-1;editValue='';saveState();render();},
+  finishEditChild:function(){var ci=document.getElementById('childInput');if(ci&&ci.value.trim()&&editingChild>=0){children[editingChild]=ci.value.trim().toUpperCase();childLastModified[editingChild]=Date.now();}editingChild=-1;editValue='';saveState();render();},
   cancelEditChild:function(){editingChild=-1;editValue='';render();},
   showChildDetail:function(i){selectedChild=i;render();},
   closeChildDetail:function(){selectedChild=-1;render();},
@@ -877,7 +877,8 @@ window.App={
   addChild:function(){
     var name=prompt('Nome del nuovo bambino\n(es. Rossi Luca):');
     if(!name||!name.trim()) return;
-    children.push(name.trim());
+    var nameUpper=name.trim().toUpperCase();
+    children.push(nameUpper);
     // Initialize gender auto-detect
     var g=guessGender(name.trim());
     childGender[children.length-1]=g;
