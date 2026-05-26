@@ -335,6 +335,7 @@ var db = null;
 var syncStatus = 'idle';
 var firestoreLoaded = false;
 var firestoreLoadDone = false;
+var firestoreUnsubscribe = null;
 var showDietModal = -1;
 var selectedChild = -1;
 
@@ -752,6 +753,8 @@ function doSaveToFirestore(){
     .then(function(){
       console.log('[SAVE] Firestore save SUCCESS');
       syncStatus='synced';renderSyncBar();savePinsToLocalStorage();
+      // Update snapshot tracker so our own changes don't trigger a re-render
+      lastSnapshotData=JSON.stringify(data.classes);
       setTimeout(function(){if(syncStatus==='synced'){syncStatus='idle';renderSyncBar();}},3000);
     })
     .catch(function(err){
@@ -760,6 +763,50 @@ function doSaveToFirestore(){
       alert('Errore di salvataggio nel cloud!\nI dati sono salvati localmente.\nErrore: '+err.message+'\n\nClasse count: '+classCount);
     });
 }
+
+// Real-time Firestore listener - updates messages and data from other sessions
+var lastSnapshotData=null;
+function startFirestoreListener(){
+  if(!db||!currentUser) return;
+  // Stop any existing listener
+  if(firestoreUnsubscribe){firestoreUnsubscribe();firestoreUnsubscribe=null;}
+  var uid=currentUser.uid;
+  firestoreUnsubscribe=db.collection('users').doc(uid).onSnapshot(function(doc){
+    if(!doc.exists) return;
+    var d=doc.data();
+    if(!d||!d.classes) return;
+    // Only update if data actually changed (avoid self-update loops)
+    var dataStr=JSON.stringify(d.classes);
+    if(lastSnapshotData&&dataStr===lastSnapshotData) return;
+    lastSnapshotData=dataStr;
+    // Check if we're currently saving (avoid overwriting our own changes mid-save)
+    if(firestoreSaveTimer) return;
+    // Merge incoming messages into current classes
+    var changed=false;
+    for(var cId in d.classes){
+      if(!d.classes.hasOwnProperty(cId)) continue;
+      if(!classes[cId]) continue; // New class - skip, will be handled by full load
+      // Check messages changes
+      var incomingMsgs=d.classes[cId].messages||[];
+      var currentMsgs=classes[cId].messages||[];
+      if(JSON.stringify(incomingMsgs)!==JSON.stringify(currentMsgs)){
+        classes[cId].messages=incomingMsgs;
+        changed=true;
+      }
+    }
+    if(changed){
+      console.log('[SNAPSHOT] Messages updated from Firestore');
+      // If viewing a class that received messages, update the display
+      if(currentClassId&&classes[currentClassId]){
+        // Don't reload all class data, just update messages
+      }
+      render();
+    }
+  },function(err){
+    console.error('[SNAPSHOT] Listener error:',err);
+  });
+}
+
 function restorePinsFromLocalStorage(){
   // Ripristina i PIN da localStorage - SEMPRE sovrascrivi se localStorage ha un PIN
   try{
@@ -886,6 +933,7 @@ function handleFirestoreData(doc, uid, localData){
     ensureDefaultClass();
     updateClassLockState();
     firestoreLoadDone=true;firestoreLoaded=true;syncStatus='synced';updateClassLockState();render();
+    startFirestoreListener();
     setTimeout(function(){if(syncStatus==='synced'){syncStatus='idle';renderSyncBar();}},3000);
     return;
   }
@@ -909,6 +957,7 @@ function handleFirestoreData(doc, uid, localData){
   
   firestoreLoadDone=true;
   firestoreLoaded=true;syncStatus='synced';updateClassLockState();render();
+  startFirestoreListener();
   setTimeout(function(){if(syncStatus==='synced'){syncStatus='idle';renderSyncBar();}},3000);
 }
 function renderSyncBar(){
@@ -942,6 +991,8 @@ function initFirebase(){
         }
         loadFromFirestore(u.uid);
       }else{
+        if(firestoreUnsubscribe){firestoreUnsubscribe();firestoreUnsubscribe=null;}
+        lastSnapshotData=null;
         firestoreLoadDone=false;
         try{localStorage.removeItem('rp_data');}catch(e){}
         try{if(previousUser){localStorage.removeItem('rp_data_'+previousUser.uid);}}catch(e2){}
