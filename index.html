@@ -671,6 +671,32 @@ function doSaveToFirestore(){
     .then(function(){syncStatus='synced';renderSyncBar();setTimeout(function(){if(syncStatus==='synced'){syncStatus='idle';renderSyncBar();}},3000);})
     .catch(function(err){console.error('Firestore save error:',err);syncStatus='error';renderSyncBar();});
 }
+function restorePinsFromLocalStorage(){
+  // Ripristina i PIN da localStorage se Firestore non li ha
+  try{
+    var savedPins=JSON.parse(localStorage.getItem('rp_pins')||'{}');
+    for(var classId in savedPins){
+      if(savedPins.hasOwnProperty(classId)&&classes[classId]){
+        // Se Firestore non ha il PIN ma localStorage sì, ripristinalo
+        if(!classes[classId].pin&&savedPins[classId]){
+          classes[classId].pin=savedPins[classId];
+        }
+      }
+    }
+  }catch(e){}
+}
+function savePinsToLocalStorage(){
+  // Salva tutti i PIN delle classi su localStorage (backup sincrono)
+  try{
+    var pins={};
+    for(var classId in classes){
+      if(classes.hasOwnProperty(classId)&&classes[classId].pin){
+        pins[classId]=classes[classId].pin;
+      }
+    }
+    localStorage.setItem('rp_pins',JSON.stringify(pins));
+  }catch(e){}
+}
 function loadFromFirestore(uid){
   if(!db) return;
   resetAllData();
@@ -683,6 +709,8 @@ function loadFromFirestore(uid){
           classes=d.classes;
           currentClassId=d.currentClassId||'';
           if(d.schoolName) schoolName=d.schoolName;
+          // Ripristina PIN da localStorage se Firestore non li ha
+          restorePinsFromLocalStorage();
           // Carica sempre i dati della classe corrente (per ripristinare teacher1, teacher2, className, ecc.)
           if(currentClassId&&classes[currentClassId]){loadClassData(currentClassId);}
           ensureDefaultClass();
@@ -1323,18 +1351,22 @@ window.App={
     if(newPin===null) return;
     if(newPin.trim()&&!/^\d{4,6}$/.test(newPin.trim())){alert('Il PIN deve essere di 4-6 cifre.');return;}
     classes[currentClassId].pin=newPin.trim();
-    if(!newPin.trim()){unlockedClasses[currentClassId]=true;}
-    else{unlockedClasses[currentClassId]=true;}
+    // Sblocca subito per questa sessione
+    unlockedClasses[currentClassId]=true;
     updateClassLockState();
-    // Salva IMMEDIATAMENTE su Firestore (senza ritardo) per non perdere il PIN
+    // Salva PIN su localStorage dedicato (SINCRONO - non si perde mai)
+    savePinsToLocalStorage();
+    // Salva anche sui dati principali
     saveCurrentClassData();
     try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:classes,currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
+    // Salva su Firestore (asincrono - best effort)
     if(currentUser&&db){
       var data={classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
       db.collection('users').doc(currentUser.uid).set(data).then(function(){syncStatus='synced';renderSyncBar();}).catch(function(err){console.error('Save error:',err);syncStatus='error';renderSyncBar();});
     }
     render();
-    alert(newPin.trim()?'PIN impostato con successo!\nDopo il refresh della pagina ti verrà richiesto il PIN per accedere.':'PIN rimosso. La classe ora è accessibile liberamente.');
+    if(newPin.trim()){alert('PIN impostato con successo!\nQuando ricarichi la pagina ti verrà richiesto il PIN per accedere.');}
+    else{alert('PIN rimosso. La classe ora è accessibile liberamente.');}
   },
   manageCoordinatricePin:function(){
     if(!classes[COORDINATRICE_ID]) return;
@@ -1344,23 +1376,22 @@ window.App={
     if(newPin===null) return;
     if(newPin.trim()&&!/^\d{4,6}$/.test(newPin.trim())){alert('Il PIN deve essere di 4-6 cifre.');return;}
     classes[COORDINATRICE_ID].pin=newPin.trim();
-    if(newPin.trim()){
-      // PIN impostato - sblocca subito per questa sessione
-      unlockedClasses[COORDINATRICE_ID]=true;
-    }else{
-      // PIN rimosso - sblocca permanentemente
-      unlockedClasses[COORDINATRICE_ID]=true;
-    }
+    // Sblocca subito per questa sessione
+    unlockedClasses[COORDINATRICE_ID]=true;
     updateClassLockState();
-    // Salva IMMEDIATAMENTE su Firestore (senza ritardo) per non perdere il PIN
+    // Salva PIN su localStorage dedicato (SINCRONO - non si perde mai)
+    savePinsToLocalStorage();
+    // Salva anche sui dati principali
     saveCurrentClassData();
     try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:classes,currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
+    // Salva su Firestore (asincrono - best effort)
     if(currentUser&&db){
       var data={classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
       db.collection('users').doc(currentUser.uid).set(data).then(function(){syncStatus='synced';renderSyncBar();}).catch(function(err){console.error('Save error:',err);syncStatus='error';renderSyncBar();});
     }
     render();
-    alert(newPin.trim()?'PIN COORDINATRICE impostato con successo!\nDopo il refresh della pagina ti verrà richiesto il PIN per accedere.':'PIN COORDINATRICE rimosso. La COORDINATRICE ora è accessibile liberamente.');
+    if(newPin.trim()){alert('PIN COORDINATRICE impostato con successo!\nQuando ricarichi la pagina ti verrà richiesto il PIN per accedere.');}
+    else{alert('PIN COORDINATRICE rimosso. La COORDINATRICE ora è accessibile liberamente.');}
   },
   addChild:function(){
     var name=prompt('Nome del nuovo bambino\n(es. Rossi Luca):');
