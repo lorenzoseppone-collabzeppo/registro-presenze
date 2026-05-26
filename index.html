@@ -94,6 +94,11 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .label-post{color:#64b5f6}
 .child-row{display:grid;grid-template-columns:1fr 30px 42px 48px 48px 48px;align-items:center;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.06);gap:3px;transition:background 0.1s}
 .child-row:last-child{border-bottom:none}
+.coor-group-header{display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(255,255,255,0.08);border-top:2px solid rgba(255,255,255,0.15);border-bottom:1px solid rgba(255,255,255,0.1)}
+.coor-group-header:first-child{border-top:none}
+.coor-group-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.coor-group-name{font-size:13px;font-weight:700;color:white;letter-spacing:0.5px;text-transform:uppercase}
+.coor-group-count{font-size:11px;font-weight:500;color:rgba(255,255,255,0.5);margin-left:auto}
 .child-info{display:flex;align-items:center;min-width:0}
 .child-name-badge{display:flex;align-items:center;justify-content:center;padding:7px 6px;border-radius:8px;background:#1a1a2e;color:white;font-size:14px;font-weight:700;cursor:pointer;transition:all 0.15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;width:100%;letter-spacing:0.3px;line-height:1.1}
 .child-name-badge.male{background:#5b9bd5}
@@ -1126,38 +1131,76 @@ function render(){
 
   var filtered=getFilteredChildren();
 
-  for(var fi=0;fi<filtered.length;fi++){
-    var idx=filtered[fi].i;var name=filtered[fi].name;
-    var hasDiet=childDiets[idx]&&childDiets[idx].type&&childDiets[idx].type!=='nessuna';
-    var dietLabel=getDietLabel(idx);
-    var dietTagClass=hasDiet?getDietTagClass(childDiets[idx].type):'';
-    var gClass=getGenderClass(idx);
-    html+='<div class="child-row '+gClass+'-row" data-name="'+esc(name.toLowerCase())+'"><div class="child-info">';
-    if(editingChild===idx&&!isCoordinatrice()){html+='<input class="child-name-input" id="childInput" value="'+esc(editValue)+'" onblur="App.finishEditChild()" onkeydown="if(event.key===\'Enter\')App.finishEditChild();if(event.key===\'Escape\')App.cancelEditChild()"/>';}
-    else{
-      var noteIndicator=childNotes[idx]?' <span style="font-size:10px;opacity:0.8">\ud83d\udcdd</span>':'';
-      html+='<div class="child-name-badge '+gClass+'" onclick="App.showChildDetail('+idx+')" title="Clicca per vedere il riepilogo">'+esc(nameReversed(name))+noteIndicator;
-      // Tag classe per COORDINATRICE
-      if(isCoordinatrice()&&classes[COORDINATRICE_ID]&&classes[COORDINATRICE_ID].childSourceMap&&classes[COORDINATRICE_ID].childSourceMap[idx]){
-        var srcInfo=classes[COORDINATRICE_ID].childSourceMap[idx];
-        html+='<span style="font-size:9px;margin-left:4px;padding:1px 5px;border-radius:4px;background:'+srcInfo.color+';opacity:0.8">'+esc(srcInfo.className.toUpperCase())+'</span>';
+  // COORDINATRICE: raggruppa i bambini per classe con intestazione
+  if(isCoordinatrice()&&classes[COORDINATRICE_ID]&&classes[COORDINATRICE_ID].childSourceMap){
+    var coorGroups={};
+    var coorGroupOrder=[];
+    for(var fi=0;fi<filtered.length;fi++){
+      var idx=filtered[fi].i;
+      var srcMap=classes[COORDINATRICE_ID].childSourceMap[idx];
+      var gKey=srcMap?srcMap.classId:'__unknown__';
+      if(!coorGroups[gKey]){
+        coorGroups[gKey]={className:srcMap?srcMap.className:'Sconosciuta',color:srcMap?srcMap.color:'#666',items:[]};
+        coorGroupOrder.push(gKey);
+      }
+      coorGroups[gKey].items.push(filtered[fi]);
+    }
+    for(var gi=0;gi<coorGroupOrder.length;gi++){
+      var grp=coorGroups[coorGroupOrder[gi]];
+      // Intestazione gruppo classe
+      html+='<div class="coor-group-header"><div class="coor-group-dot" style="background:'+grp.color+'"></div><div class="coor-group-name">'+esc(grp.className.toUpperCase())+'</div><div class="coor-group-count">'+grp.items.length+' bambin'+(grp.items.length===1?'o':'i')+'</div></div>';
+      // Bambini del gruppo
+      for(var ci=0;ci<grp.items.length;ci++){
+        var idx=grp.items[ci].i;var name=grp.items[ci].name;
+        var hasDiet=childDiets[idx]&&childDiets[idx].type&&childDiets[idx].type!=='nessuna';
+        var gClass=getGenderClass(idx);
+        html+='<div class="child-row '+gClass+'-row" data-name="'+esc(name.toLowerCase())+'"><div class="child-info">';
+        html+='<div class="child-name-badge '+gClass+'" onclick="App.showChildDetail('+idx+')" title="Clicca per vedere il riepilogo">'+esc(nameReversed(name))+'</div>';
+        html+='</div>';
+        var age=childAge[idx]||'';
+        html+='<div class="age-cell"><div class="age-circle '+(age?'has-age':'')+'" '+(locked?'':'onclick="App.editAge('+idx+')"')+' title="Clicca per inserire età">'+(age?esc(String(age)):'-')+'</div></div>';
+        html+='<div class="diet-cell"><button class="diet-btn '+(hasDiet?'has-diet':'')+'" '+(locked?'disabled style="opacity:0.5;cursor:not-allowed"':'onclick="App.openDietModal('+idx+')"')+' title="Dieta">\ud83c\udf7d</button></div>';
+        if(noEdit){
+          html+='<div class="check-cell"><input type="checkbox" disabled style="opacity:0.3;accent-color:#28a745"/></div>';
+          html+='<div class="check-cell"><button class="pre-btn" disabled style="opacity:0.3;cursor:not-allowed">PRE</button></div>';
+          html+='<div class="check-cell"><button class="post-btn" disabled style="opacity:0.3;cursor:not-allowed">POST</button></div>';
+        }else{
+          html+='<div class="check-cell"><input type="checkbox" '+(hasKey(presenze,idx)?'checked':'')+' onchange="App.togglePresenza('+idx+')"/></div>';
+          html+='<div class="check-cell"><button class="pre-btn '+(hasKey(pre,idx)?'active':'')+'" onclick="App.togglePre('+idx+')">PRE</button></div>';
+          html+='<div class="check-cell"><button class="post-btn '+(hasKey(post,idx)?'active':'')+'" onclick="App.togglePost('+idx+')">POST</button></div>';
+        }
+        html+='</div>';
+      }
+    }
+  }else{
+    // Classi normali: lista piatta
+    for(var fi=0;fi<filtered.length;fi++){
+      var idx=filtered[fi].i;var name=filtered[fi].name;
+      var hasDiet=childDiets[idx]&&childDiets[idx].type&&childDiets[idx].type!=='nessuna';
+      var dietLabel=getDietLabel(idx);
+      var dietTagClass=hasDiet?getDietTagClass(childDiets[idx].type):'';
+      var gClass=getGenderClass(idx);
+      html+='<div class="child-row '+gClass+'-row" data-name="'+esc(name.toLowerCase())+'"><div class="child-info">';
+      if(editingChild===idx){html+='<input class="child-name-input" id="childInput" value="'+esc(editValue)+'" onblur="App.finishEditChild()" onkeydown="if(event.key===\'Enter\')App.finishEditChild();if(event.key===\'Escape\')App.cancelEditChild()"/>';}
+      else{
+        var noteIndicator=childNotes[idx]?' <span style="font-size:10px;opacity:0.8">\ud83d\udcdd</span>':'';
+        html+='<div class="child-name-badge '+gClass+'" onclick="App.showChildDetail('+idx+')" title="Clicca per vedere il riepilogo">'+esc(nameReversed(name))+noteIndicator+'</div>';
+      }
+      html+='</div>';
+      var age=childAge[idx]||'';
+      html+='<div class="age-cell"><div class="age-circle '+(age?'has-age':'')+'" '+(locked?'':'onclick="App.editAge('+idx+')"')+' title="Clicca per inserire età">'+(age?esc(String(age)):'-')+'</div></div>';
+      html+='<div class="diet-cell"><button class="diet-btn '+(hasDiet?'has-diet':'')+'" '+(locked?'disabled style="opacity:0.5;cursor:not-allowed"':'onclick="App.openDietModal('+idx+')"')+' title="Dieta">\ud83c\udf7d</button></div>';
+      if(noEdit){
+        html+='<div class="check-cell"><input type="checkbox" disabled style="opacity:0.3;accent-color:#28a745"/></div>';
+        html+='<div class="check-cell"><button class="pre-btn" disabled style="opacity:0.3;cursor:not-allowed">PRE</button></div>';
+        html+='<div class="check-cell"><button class="post-btn" disabled style="opacity:0.3;cursor:not-allowed">POST</button></div>';
+      }else{
+        html+='<div class="check-cell"><input type="checkbox" '+(hasKey(presenze,idx)?'checked':'')+' onchange="App.togglePresenza('+idx+')"/></div>';
+        html+='<div class="check-cell"><button class="pre-btn '+(hasKey(pre,idx)?'active':'')+'" onclick="App.togglePre('+idx+')">PRE</button></div>';
+        html+='<div class="check-cell"><button class="post-btn '+(hasKey(post,idx)?'active':'')+'" onclick="App.togglePost('+idx+')">POST</button></div>';
       }
       html+='</div>';
     }
-    html+='</div>';
-    var age=childAge[idx]||'';
-    html+='<div class="age-cell"><div class="age-circle '+(age?'has-age':'')+'" '+(locked?'':'onclick="App.editAge('+idx+')"')+' title="Clicca per inserire età">'+(age?esc(String(age)):'-')+'</div></div>';
-    html+='<div class="diet-cell"><button class="diet-btn '+(hasDiet?'has-diet':'')+'" '+(locked?'disabled style="opacity:0.5;cursor:not-allowed"':'onclick="App.openDietModal('+idx+')"')+' title="Dieta">\ud83c\udf7d</button></div>';
-    if(noEdit){
-      html+='<div class="check-cell"><input type="checkbox" disabled style="opacity:0.3;accent-color:#28a745"/></div>';
-      html+='<div class="check-cell"><button class="pre-btn" disabled style="opacity:0.3;cursor:not-allowed">PRE</button></div>';
-      html+='<div class="check-cell"><button class="post-btn" disabled style="opacity:0.3;cursor:not-allowed">POST</button></div>';
-    }else{
-      html+='<div class="check-cell"><input type="checkbox" '+(hasKey(presenze,idx)?'checked':'')+' onchange="App.togglePresenza('+idx+')"/></div>';
-      html+='<div class="check-cell"><button class="pre-btn '+(hasKey(pre,idx)?'active':'')+'" onclick="App.togglePre('+idx+')">PRE</button></div>';
-      html+='<div class="check-cell"><button class="post-btn '+(hasKey(post,idx)?'active':'')+'" onclick="App.togglePost('+idx+')">POST</button></div>';
-    }
-    html+='</div>';
   }
   html+='</div>';
   // Add child button
