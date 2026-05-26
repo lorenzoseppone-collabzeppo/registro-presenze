@@ -11,9 +11,18 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background-color:#f0eef5;background-image:radial-gradient(circle,#d5d0e0 1px,transparent 1px);background-size:20px 20px;color:#333;-webkit-font-smoothing:antialiased}
 .app{max-width:900px;margin:0 auto;padding:16px;min-height:100vh}
-.header{display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:16px;padding:20px 16px;background:linear-gradient(135deg,#1a1a2e,#2d2d5e);border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,0.15)}
+.header{display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:16px;padding:20px 16px;background:linear-gradient(135deg,#1a1a2e,#2d2d5e);border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,0.15);position:relative}
 .header-icon{font-size:48px;line-height:1;flex-shrink:0}
 .header-info{display:flex;flex-direction:column;align-items:center;gap:4px;width:100%}
+.header-weather-row{display:flex;align-items:center;justify-content:space-between;width:100%;gap:8px}
+.header-clock{display:flex;flex-direction:column;align-items:flex-start;gap:1px}
+.header-clock-time{font-size:28px;font-weight:800;color:white;letter-spacing:1px;line-height:1;font-variant-numeric:tabular-nums}
+.header-clock-date{font-size:11px;font-weight:600;color:rgba(255,255,255,0.7);letter-spacing:0.3px}
+.header-weather{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12)}
+.header-weather-icon{font-size:26px;line-height:1}
+.header-weather-info{display:flex;flex-direction:column;align-items:flex-end;gap:0}
+.header-weather-temp{font-size:18px;font-weight:700;color:white;line-height:1.1}
+.header-weather-desc{font-size:9px;font-weight:600;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px}
 .school-name{font-size:11px;font-weight:600;color:#ccc;text-transform:uppercase;letter-spacing:0.8px;cursor:pointer;padding:1px 6px;border-radius:4px;border:1.5px solid transparent;transition:border-color 0.15s;text-align:center}
 .school-name:hover{border-color:#888}
 .school-name-input{font-size:11px;font-weight:600;color:#333;text-transform:uppercase;letter-spacing:0.8px;border:1.5px solid #007bff;border-radius:4px;padding:1px 6px;outline:none;background:white;font-family:inherit;text-align:center;width:100%}
@@ -257,7 +266,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .msg-received-label{font-size:12px;font-weight:600;color:#64b5f6;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
 .msg-empty{font-size:12px;color:rgba(255,255,255,0.3);font-style:italic;text-align:center;padding:8px 0}
 @media print{body{background:white!important;background-image:none!important}.btn,.btn-row,.auth-bar,.sync-bar,.search-box,.arrow-btn,.diet-btn{display:none!important}.header-icon,.user-badge{display:none!important}.card,.roster,.stat-card,.msg-section,.msg-received-section{box-shadow:none!important;border:1px solid #eee}}
-@media(min-width:768px){.app{max-width:900px;padding:24px}.header{padding:28px 32px}.header-icon{font-size:56px}.school-name{font-size:13px}.class-name{font-size:26px}.class-sub{font-size:15px}.teacher-name{font-size:14px}.teacher-field{font-size:13px}.child-name-badge{font-size:15px;padding:8px 14px}.age-circle{width:30px;height:30px;font-size:14px}.roster-header{grid-template-columns:1fr 36px 52px 56px 56px 56px;gap:6px;padding:12px 16px}.child-row{grid-template-columns:1fr 36px 52px 56px 56px 56px;gap:6px;padding:10px 16px}.pre-btn,.post-btn{width:48px;font-size:11px;padding:5px 6px}.diet-btn{width:28px;height:28px;font-size:14px}.check-cell input[type=checkbox]{width:20px;height:20px}.btn{padding:10px 18px;font-size:14px}.stat-value{font-size:42px}.card{padding:20px}}
+@media(min-width:768px){.app{max-width:900px;padding:24px}.header{padding:28px 32px}.header-icon{font-size:56px}.header-clock-time{font-size:36px}.header-clock-date{font-size:13px}.header-weather-icon{font-size:32px}.header-weather-temp{font-size:22px}.school-name{font-size:13px}.class-name{font-size:26px}.class-sub{font-size:15px}.teacher-name{font-size:14px}.teacher-field{font-size:13px}.child-name-badge{font-size:15px;padding:8px 14px}.age-circle{width:30px;height:30px;font-size:14px}.roster-header{grid-template-columns:1fr 36px 52px 56px 56px 56px;gap:6px;padding:12px 16px}.child-row{grid-template-columns:1fr 36px 52px 56px 56px 56px;gap:6px;padding:10px 16px}.pre-btn,.post-btn{width:48px;font-size:11px;padding:5px 6px}.diet-btn{width:28px;height:28px;font-size:14px}.check-cell input[type=checkbox]{width:20px;height:20px}.btn{padding:10px 18px;font-size:14px}.stat-value{font-size:42px}.card{padding:20px}}
 @media(max-width:400px){.roster-header{grid-template-columns:1fr 26px 36px 40px 40px 40px}.child-row{grid-template-columns:1fr 26px 36px 40px 40px 40px}.child-name-badge{font-size:12px;padding:5px 4px}.age-circle{width:22px;height:22px;font-size:8px}.pre-btn,.post-btn{width:34px;font-size:8px;padding:3px 3px}.diet-btn{width:20px;height:20px;font-size:10px}.check-cell input[type=checkbox]{width:14px;height:14px}}
 </style>
 </head>
@@ -346,6 +355,8 @@ var currentClassId = '';
 var unlockedClasses = {};
 var classLocked = false;
 var COORDINATRICE_ID = '__coordinatrice__';
+var weatherData = null;
+var clockTimer = null;
 
 
 function regularClassCount(){var c=0;for(var k in classes){if(classes.hasOwnProperty(k)&&k!==COORDINATRICE_ID)c++;}return c;}
@@ -382,6 +393,98 @@ function nameReversed(name){
 function countKeys(obj){var c=0;for(var k in obj)if(obj.hasOwnProperty(k))c++;return c;}
 function hasKey(obj,k){return obj.hasOwnProperty(k);}
 function esc(s){if(!s)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ---- OROLOGIO E METEO ----
+function getClockHTML(){
+  var now=new Date();
+  var h=String(now.getHours()).padStart(2,'0');
+  var m=String(now.getMinutes()).padStart(2,'0');
+  var dayName=DAYS[now.getDay()];
+  var dayNum=now.getDate();
+  var monthName=MONTHS[now.getMonth()];
+  var year=now.getFullYear();
+  var timeStr=h+':'+m;
+  var dateStr=dayName+' '+dayNum+' '+monthName+' '+year;
+  var wIcon='\u2600';var wTemp='--';var wDesc='Caricamento...';
+  if(weatherData){
+    var code=weatherData.code||0;
+    var isDay=weatherData.isDay!==undefined?weatherData.isDay:true;
+    if(code===0){wIcon=isDay?'\u2600':'\ud83c\udf19';wDesc='Sereno';}
+    else if(code===1){wIcon=isDay?'\ud83c\udf24':'\ud83c\udf19';wDesc='Preval.sereno';}
+    else if(code===2){wIcon='\u26c5';wDesc='Parz.nuvoloso';}
+    else if(code===3){wIcon='\u2601';wDesc='Nuvoloso';}
+    else if(code>=45&&code<=48){wIcon='\ud83c\udf2b';wDesc='Nebbia';}
+    else if(code>=51&&code<=55){wIcon='\ud83c\udf27';wDesc='Pioviggine';}
+    else if(code>=56&&code<=57){wIcon='\ud83c\udf28';wDesc='Pioggia gelata';}
+    else if(code>=61&&code<=65){wIcon='\ud83c\udf27';wDesc='Pioggia';}
+    else if(code>=66&&code<=67){wIcon='\ud83c\udf28';wDesc='Pioggia gelata';}
+    else if(code>=71&&code<=77){wIcon='\ud83c\udf28';wDesc='Neve';}
+    else if(code>=80&&code<=82){wIcon='\ud83c\udf27';wDesc='Rovesci';}
+    else if(code>=85&&code<=86){wIcon='\ud83c\udf28';wDesc='Neve';}
+    else if(code>=95){wIcon='\u26c8';wDesc='Temporale';}
+    else{wIcon='\u2601';wDesc='Variabile';}
+    if(weatherData.temp!==undefined) wTemp=Math.round(weatherData.temp)+'\u00b0C';
+  }
+  var html='<div class="header-weather-row">';
+  html+='<div class="header-clock">';
+  html+='<div class="header-clock-time" id="headerClockTime">'+esc(timeStr)+'</div>';
+  html+='<div class="header-clock-date" id="headerClockDate">'+esc(dateStr)+'</div>';
+  html+='</div>';
+  html+='<div class="header-weather">';
+  html+='<span class="header-weather-icon">'+wIcon+'</span>';
+  html+='<div class="header-weather-info">';
+  html+='<span class="header-weather-temp">'+esc(wTemp)+'</span>';
+  html+='<span class="header-weather-desc">'+esc(wDesc)+'</span>';
+  html+='</div></div>';
+  html+='</div>';
+  return html;
+}
+
+function startClock(){
+  if(clockTimer) clearInterval(clockTimer);
+  clockTimer=setInterval(function(){
+    var now=new Date();
+    var h=String(now.getHours()).padStart(2,'0');
+    var m=String(now.getMinutes()).padStart(2,'0');
+    var el=document.getElementById('headerClockTime');
+    if(el) el.textContent=h+':'+m;
+    var dayName=DAYS[now.getDay()];
+    var dayNum=now.getDate();
+    var monthName=MONTHS[now.getMonth()];
+    var year=now.getFullYear();
+    var el2=document.getElementById('headerClockDate');
+    if(el2) el2.textContent=dayName+' '+dayNum+' '+monthName+' '+year;
+  },10000);
+}
+
+function fetchWeather(){
+  // Bonirola di Zevio, VR - coordinate
+  var lat=45.35;var lon=11.08;
+  var url='https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon+'&current_weather=true&timezone=Europe/Rome';
+  try{
+    var xhr=new XMLHttpRequest();
+    xhr.open('GET',url,true);
+    xhr.timeout=8000;
+    xhr.onload=function(){
+      if(xhr.status===200){
+        try{
+          var d=JSON.parse(xhr.responseText);
+          if(d.current_weather){
+            weatherData={temp:d.current_weather.temperature,code:d.current_weather.weathercode,isDay:!!d.current_weather.is_day};
+            console.log('[WEATHER] Got weather:',weatherData.temp+'\u00b0C code='+weatherData.code);
+            // Aggiorna solo il meteo senza re-render completo
+            var weatherRow=document.querySelector('.header-weather-row');
+            if(weatherRow){var temp=document.createElement('div');temp.innerHTML=getClockHTML();weatherRow.replaceWith(temp.firstElementChild);}
+          }
+        }catch(e){console.error('[WEATHER] Parse error:',e);}
+      }
+    };
+    xhr.ontimeout=function(){console.log('[WEATHER] Timeout');};
+    xhr.onerror=function(){console.log('[WEATHER] Network error');};
+    xhr.send();
+  }catch(e){console.log('[WEATHER] Error:',e);}
+}
+// ---- FINE OROLOGIO E METEO ----
 
 function ensureCoordinatrice(){
   if(!classes[COORDINATRICE_ID]){
@@ -1037,6 +1140,8 @@ function render(){
   var html='';
 
   html+='<div class="header">';
+  // Orologio + Data + Meteo in alto
+  html+=getClockHTML();
   html+='<div class="header-icon">\ud83c\udfeb</div>';
   html+='<div class="header-info">';
   if(editingSchool){html+='<input class="school-name-input" id="schoolInput" value="'+esc(schoolName)+'" onblur="App.finishEditSchool()" onkeydown="if(event.key===\'Enter\')App.finishEditSchool()"/>';}
@@ -2630,6 +2735,10 @@ window.App={
 initFirebase();
 ensureDefaultClass();
 render();
+startClock();
+fetchWeather();
+// Aggiorna meteo ogni 30 minuti
+setInterval(function(){fetchWeather();},1800000);
 
 })();
 </script>
