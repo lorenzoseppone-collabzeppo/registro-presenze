@@ -244,6 +244,7 @@ var childDeleghe = {};
 var childContatti = {};
 var childLastModified = {};
 var childAge = {};
+var childNotes = {};
 var currentDate = new Date();
 var search = '';
 var sortMode = 'default';
@@ -357,7 +358,7 @@ function getStorageKey(){
 
 function resetAllData(){
   children=['Sofia Rossi','Leonardo Bianchi','Aurora Romano','Tommaso Ferrari','Giulia Esposito','Mattia Ricci','Alice Marino','Nicola Parisi','Elisa Benedetti','Simone Rinaldi','Beatrice Costa','Davide Moretti','Martina Barbieri','Federico Rizzo','Chiara Lombardi','Gabriele Gallo','Ginevra Conti','Alessandro De Luca','Lorenzo Greco','Emma Bruno','Pietro Colombo','Viola Fontana','Marco Villa','Camilla Russo','Edoardo Messina','Anna Serra','Filippo Mazza','Bianca Pellegrini','Luca Marchetti','Giorgia Ferretti'];
-  dateData={};presenze={};pre={};post={};childDiets={};childGender={};childDeleghe={};childContatti={};childAge={};
+  dateData={};presenze={};pre={};post={};childDiets={};childGender={};childDeleghe={};childContatti={};childAge={};childNotes={};
   holidays={};dayNotes={};
   className='Chioccioline';schoolName='Scuola dell\'Infanzia di Bonirola';teacher1='';teacher2='';
   currentDate=new Date();
@@ -367,7 +368,7 @@ function resetAllData(){
 function saveState(){
   saveCurrentDateData();
   if(currentUser){
-    try{localStorage.setItem(getStorageKey(),JSON.stringify({children:children,dateData:dateData,childDiets:childDiets,childGender:childGender,childDeleghe:childDeleghe,childContatti:childContatti,childLastModified:childLastModified,childAge:childAge,sortMode:sortMode,currentDate:dateToInput(currentDate),className:className,schoolName:schoolName,teacher1:teacher1,teacher2:teacher2,holidays:holidays,dayNotes:dayNotes}));}catch(e){}
+    try{localStorage.setItem(getStorageKey(),JSON.stringify({children:children,dateData:dateData,childDiets:childDiets,childGender:childGender,childDeleghe:childDeleghe,childContatti:childContatti,childLastModified:childLastModified,childAge:childAge,childNotes:childNotes,sortMode:sortMode,currentDate:dateToInput(currentDate),className:className,schoolName:schoolName,teacher1:teacher1,teacher2:teacher2,holidays:holidays,dayNotes:dayNotes}));}catch(e){}
     saveToFirestore();
   }
 }
@@ -385,6 +386,7 @@ function loadState(){
       if(d.childContatti) childContatti=d.childContatti;
       if(d.childLastModified) childLastModified=d.childLastModified;
       if(d.childAge) childAge=d.childAge;
+      if(d.childNotes) childNotes=d.childNotes;
       if(d.sortMode) sortMode=d.sortMode;
       if(!d.dateData&&(d.presenze||d.pre||d.post)){
         var key=d.currentDate||dateToKey(new Date());
@@ -414,7 +416,7 @@ function saveToFirestore(){
 }
 function doSaveToFirestore(){
   if(!currentUser||!db) return;
-  var data={children:children,className:className,schoolName:schoolName,teacher1:teacher1,teacher2:teacher2,holidays:holidays,dayNotes:dayNotes,dateData:dateData,childDiets:childDiets,childGender:childGender,childDeleghe:childDeleghe,childContatti:childContatti,childLastModified:childLastModified,childAge:childAge,sortMode:sortMode,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+  var data={children:children,className:className,schoolName:schoolName,teacher1:teacher1,teacher2:teacher2,holidays:holidays,dayNotes:dayNotes,dateData:dateData,childDiets:childDiets,childGender:childGender,childDeleghe:childDeleghe,childContatti:childContatti,childLastModified:childLastModified,childAge:childAge,childNotes:childNotes,sortMode:sortMode,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
   db.collection('users').doc(currentUser.uid).set(data,{merge:true})
     .then(function(){syncStatus='synced';renderSyncBar();setTimeout(function(){if(syncStatus==='synced'){syncStatus='idle';renderSyncBar();}},3000);})
     .catch(function(err){console.error('Firestore save error:',err);syncStatus='error';renderSyncBar();});
@@ -441,11 +443,12 @@ function loadFromFirestore(uid){
         if(d.childContatti) childContatti=d.childContatti;
         if(d.childLastModified) childLastModified=d.childLastModified;
         if(d.childAge) childAge=d.childAge;
+        if(d.childNotes) childNotes=d.childNotes;
         if(d.sortMode) sortMode=d.sortMode;
         var key=getCurrentDateKey();var dd=dateData[key];
         if(dd){presenze=dd.presenze||{};pre=dd.pre||{};post=dd.post||{};}
         else{presenze={};pre={};post={};}
-        try{localStorage.setItem(getStorageKey(),JSON.stringify({children:children,dateData:dateData,childDiets:childDiets,childGender:childGender,childDeleghe:childDeleghe,childContatti:childContatti,childLastModified:childLastModified,childAge:childAge,sortMode:sortMode,currentDate:dateToInput(currentDate),className:className,schoolName:schoolName,teacher1:teacher1,teacher2:teacher2,holidays:holidays,dayNotes:dayNotes}));}catch(e){}
+        try{localStorage.setItem(getStorageKey(),JSON.stringify({children:children,dateData:dateData,childDiets:childDiets,childGender:childGender,childDeleghe:childDeleghe,childContatti:childContatti,childLastModified:childLastModified,childAge:childAge,childNotes:childNotes,sortMode:sortMode,currentDate:dateToInput(currentDate),className:className,schoolName:schoolName,teacher1:teacher1,teacher2:teacher2,holidays:holidays,dayNotes:dayNotes}));}catch(e){}
       }else{
         try{localStorage.removeItem(getStorageKey());}catch(e){}
       }
@@ -648,7 +651,8 @@ function render(){
     html+='<div class="child-row '+gClass+'-row" data-name="'+esc(name.toLowerCase())+'"><div class="child-info">';
     if(editingChild===idx){html+='<input class="child-name-input" id="childInput" value="'+esc(editValue)+'" onblur="App.finishEditChild()" onkeydown="if(event.key===\'Enter\')App.finishEditChild();if(event.key===\'Escape\')App.cancelEditChild()"/>';}
     else{
-      html+='<div class="child-name-badge '+gClass+'" onclick="App.showChildDetail('+idx+')" title="Clicca per vedere il riepilogo">'+esc(nameReversed(name))+'</div>';
+      var noteIndicator=childNotes[idx]?' <span style="font-size:10px;opacity:0.8">\ud83d\udcdd</span>':'';
+      html+='<div class="child-name-badge '+gClass+'" onclick="App.showChildDetail('+idx+')" title="Clicca per vedere il riepilogo">'+esc(nameReversed(name))+noteIndicator+'</div>';
     }
     html+='</div>';
     var age=childAge[idx]||'';
@@ -818,6 +822,13 @@ function renderChildDetail(idx){
   html+='<button onclick="App.addContatto('+idx+')">Aggiungi</button>';
   html+='</div></div>';
 
+  // Note per bambino
+  var childNote=childNotes[idx]||'';
+  html+='<div class="deleghe-box" style="background:#fff8e1">';
+  html+='<div class="deleghe-box-title" style="color:#f57f17"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f57f17" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Note</div>';
+  html+='<textarea id="childNoteInput" placeholder="Scrivi una nota per questo bambino..." style="width:100%;min-height:48px;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;outline:none;color:#333" oninput="App.updateChildNote('+idx+',this.value)">'+esc(childNote)+'</textarea>';
+  html+='</div>';
+
   html+='<button class="child-detail-close" onclick="App.closeChildDetail()">Chiudi</button>';
   html+='</div></div>';
   return html;
@@ -844,6 +855,7 @@ window.App={
   removeDelega:function(i,di){if(childDeleghe[i]){childDeleghe[i].splice(di,1);if(childDeleghe[i].length===0)delete childDeleghe[i];saveState();render();}},
   addContatto:function(i){var nomeInp=document.getElementById('contattoNome');var telInp=document.getElementById('contattoTelefono');if(nomeInp&&telInp&&nomeInp.value.trim()&&telInp.value.trim()){if(!childContatti[i])childContatti[i]=[];childContatti[i].push({nome:nomeInp.value.trim(),telefono:telInp.value.trim()});saveState();render();}},
   removeContatto:function(i,ci){if(childContatti[i]){childContatti[i].splice(ci,1);if(childContatti[i].length===0)delete childContatti[i];saveState();render();}},
+  updateChildNote:function(i,val){if(val.trim()){childNotes[i]=val.trim();}else{delete childNotes[i];}saveState();},
   setSearch:function(v){search=v;render();},
   clearSearch:function(){search='';render();},
   setSearchLive:function(v){
@@ -979,25 +991,27 @@ window.App={
       var contattiList=childContatti[pi]||[];
       var contattiStr=contattiList.length>0?contattiList.map(function(c){return c.nome+': '+c.telefono;}).join(', '):'-';
       var ageStr=childAge[pi]||'-';
-      tableBody.push([pi+1,children[pi],ageStr,String(mPresenze[pi]),String(mPre[pi]),String(mPost[pi]),dietInfo||'-',delegheStr,contattiStr]);
+      var noteStr=childNotes[pi]||'-';
+      tableBody.push([pi+1,children[pi],ageStr,String(mPresenze[pi]),String(mPre[pi]),String(mPost[pi]),dietInfo||'-',delegheStr,contattiStr,noteStr]);
     }
 
     doc.autoTable({
       startY:y,
-      head:[['#','Bambino','Età','Presenze','Pre','Post','Dieta','Deleghe','Contatti']],
+      head:[['#','Bambino','Età','Presenze','Pre','Post','Dieta','Deleghe','Contatti','Note']],
       body:tableBody,
       theme:'grid',
       headStyles:{fillColor:[26,26,46],textColor:[255,255,255],fontStyle:'bold',fontSize:6,halign:'center'},
       columnStyles:{
         0:{cellWidth:6,halign:'center',fontStyle:'bold'},
-        1:{cellWidth:34},
-        2:{cellWidth:10,halign:'center'},
-        3:{cellWidth:15,halign:'center'},
-        4:{cellWidth:12,halign:'center'},
-        5:{cellWidth:12,halign:'center'},
-        6:{cellWidth:28},
-        7:{cellWidth:28},
-        8:{cellWidth:30}
+        1:{cellWidth:30},
+        2:{cellWidth:8,halign:'center'},
+        3:{cellWidth:13,halign:'center'},
+        4:{cellWidth:10,halign:'center'},
+        5:{cellWidth:10,halign:'center'},
+        6:{cellWidth:24},
+        7:{cellWidth:24},
+        8:{cellWidth:26},
+        9:{cellWidth:26}
       },
       bodyStyles:{fontSize:6},
       alternateRowStyles:{fillColor:[245,245,250]},
@@ -1029,6 +1043,11 @@ window.App={
           if(data.column.index===8){
             var raw2=data.cell.raw;
             if(raw2&&raw2!=='-'){data.cell.styles.textColor=[0,64,133];data.cell.styles.fontStyle='bold';}
+            else{data.cell.styles.textColor=[180,180,180];}
+          }
+          if(data.column.index===9){
+            var raw3=data.cell.raw;
+            if(raw3&&raw3!=='-'){data.cell.styles.textColor=[180,120,0];data.cell.styles.fontStyle='bold';}
             else{data.cell.styles.textColor=[180,180,180];}
           }
         }
