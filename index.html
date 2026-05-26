@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-<title>Registro di Classe - Chioccioline</title>
-<meta name="version" content="2025-05-26-v6"/>
+<title>Registro di Classe</title>
+<meta name="version" content="2025-05-26-v7-multi-class"/>
 <meta name="description" content="Registro di Classe per la gestione della classe"/>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231a1a2e'><path d='M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z'/></svg>"/>
 <style>
@@ -175,6 +175,18 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .sort-btn:hover{border-color:#999;color:#333}
 .sort-btn.active{border-color:#1a1a2e;background:#1a1a2e;color:white}
 .sort-btn:active{transform:scale(0.97)}
+.class-tabs{display:flex;gap:6px;padding:10px 14px;margin-bottom:10px;flex-wrap:wrap;background:#e8e4f0;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.08);align-items:center}
+.class-tab{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;border:2px solid #ddd;background:white;font-size:13px;font-weight:600;color:#666;cursor:pointer;font-family:inherit;transition:all 0.15s;white-space:nowrap}
+.class-tab:hover{border-color:#999;color:#333}
+.class-tab.active{border-color:#1a1a2e;background:#1a1a2e;color:white}
+.class-tab:active{transform:scale(0.97)}
+.class-tab-del{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:none;background:rgba(0,0,0,0.08);color:#999;font-size:13px;font-weight:700;cursor:pointer;padding:0;margin-left:2px;transition:all 0.15s;line-height:1}
+.class-tab.active .class-tab-del{background:rgba(255,255,255,0.2);color:rgba(255,255,255,0.7)}
+.class-tab-del:hover{background:#dc3545!important;color:white!important}
+.class-tab-add{display:inline-flex;align-items:center;gap:4px;padding:7px 14px;border-radius:8px;border:2px dashed #28a745;background:#f0fff4;font-size:13px;font-weight:600;color:#28a745;cursor:pointer;font-family:inherit;transition:all 0.15s;white-space:nowrap}
+.class-tab-add:hover{border-color:#1a8c37;background:#d4f5d4}
+.class-tab-add:active{transform:scale(0.97)}
+.class-tabs-label{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.3px;margin-right:4px}
 
 .edit-name-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border:1.5px solid #ccc;border-radius:8px;background:white;font-size:13px;font-weight:600;color:#555;cursor:pointer;font-family:inherit;transition:all 0.15s;white-space:nowrap}
 .edit-name-btn:hover{border-color:#007bff;color:#007bff;background:#f0f6ff}
@@ -269,6 +281,8 @@ var selectedChild = -1;
 var dateData = {};
 var holidays = {};
 var dayNotes = {};
+var classes = {};
+var currentClassId = '';
 
 var DAYS = ['Domenica','Luned\u00ec','Marted\u00ec','Mercoled\u00ec','Gioved\u00ec','Venerd\u00ec','Sabato'];
 var MONTHS = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
@@ -351,6 +365,90 @@ function switchToDate(dt){
   else{presenze={};pre={};post={};}
 }
 
+function generateClassId(){
+  return 'class_'+Date.now()+'_'+Math.random().toString(36).substring(2,7);
+}
+
+function saveCurrentClassData(){
+  saveCurrentDateData();
+  if(!currentClassId) return;
+  if(!classes[currentClassId]) classes[currentClassId]={};
+  classes[currentClassId].id=currentClassId;
+  classes[currentClassId].name=className;
+  classes[currentClassId].pin=classes[currentClassId].pin||'';
+  classes[currentClassId].children=JSON.parse(JSON.stringify(children));
+  classes[currentClassId].childDiets=JSON.parse(JSON.stringify(childDiets));
+  classes[currentClassId].childGender=JSON.parse(JSON.stringify(childGender));
+  classes[currentClassId].childDeleghe=JSON.parse(JSON.stringify(childDeleghe));
+  classes[currentClassId].childContatti=JSON.parse(JSON.stringify(childContatti));
+  classes[currentClassId].childLastModified=JSON.parse(JSON.stringify(childLastModified));
+  classes[currentClassId].childAge=JSON.parse(JSON.stringify(childAge));
+  classes[currentClassId].childNotes=JSON.parse(JSON.stringify(childNotes));
+  classes[currentClassId].dateData=JSON.parse(JSON.stringify(dateData));
+  classes[currentClassId].holidays=JSON.parse(JSON.stringify(holidays));
+  classes[currentClassId].dayNotes=JSON.parse(JSON.stringify(dayNotes));
+  classes[currentClassId].teacher1=teacher1;
+  classes[currentClassId].teacher2=teacher2;
+  classes[currentClassId].sortMode=sortMode;
+}
+
+function loadClassData(classId){
+  if(!classes[classId]) return;
+  currentClassId=classId;
+  var c=classes[classId];
+  children=c.children||[];
+  for(var li=0;li<children.length;li++){children[li]=children[li].toUpperCase();}
+  childDiets=c.childDiets||{};
+  childGender=c.childGender||{};
+  childDeleghe=c.childDeleghe||{};
+  childContatti=c.childContatti||{};
+  childLastModified=c.childLastModified||{};
+  childAge=c.childAge||{};
+  childNotes=c.childNotes||{};
+  dateData=c.dateData||{};
+  holidays=c.holidays||{};
+  dayNotes=c.dayNotes||{};
+  className=c.name||'Classe';
+  teacher1=c.teacher1||'';
+  teacher2=c.teacher2||'';
+  sortMode=c.sortMode||'default';
+  var key=getCurrentDateKey();
+  var dd=dateData[key];
+  if(dd){presenze=dd.presenze||{};pre=dd.pre||{};post=dd.post||{};}
+  else{presenze={};pre={};post={};}
+}
+
+function ensureDefaultClass(){
+  if(Object.keys(classes).length===0){
+    var defId=generateClassId();
+    classes[defId]={
+      id:defId,
+      name:className,
+      pin:'',
+      children:JSON.parse(JSON.stringify(children)),
+      childDiets:JSON.parse(JSON.stringify(childDiets)),
+      childGender:JSON.parse(JSON.stringify(childGender)),
+      childDeleghe:JSON.parse(JSON.stringify(childDeleghe)),
+      childContatti:JSON.parse(JSON.stringify(childContatti)),
+      childLastModified:JSON.parse(JSON.stringify(childLastModified)),
+      childAge:JSON.parse(JSON.stringify(childAge)),
+      childNotes:JSON.parse(JSON.stringify(childNotes)),
+      dateData:JSON.parse(JSON.stringify(dateData)),
+      holidays:JSON.parse(JSON.stringify(holidays)),
+      dayNotes:JSON.parse(JSON.stringify(dayNotes)),
+      teacher1:teacher1,
+      teacher2:teacher2,
+      sortMode:sortMode
+    };
+    currentClassId=defId;
+    loadClassData(defId);
+  }
+  if(!currentClassId){
+    var firstKey=Object.keys(classes)[0];
+    if(firstKey) loadClassData(firstKey);
+  }
+}
+
 function getStorageKey(){
   if(currentUser) return 'rp_data_'+currentUser.uid;
   return 'rp_data';
@@ -358,17 +456,18 @@ function getStorageKey(){
 
 function resetAllData(){
   children=['SOFIA ROSSI','LEONARDO BIANCHI','AURORA ROMANO','TOMMASO FERRARI','GIULIA ESPOSITO','MATTIA RICCI','ALICE MARINO','NICOLA PARISI','ELISA BENEDETTI','SIMONE RINALDI','BEATRICE COSTA','DAVIDE MORETTI','MARTINA BARBIERI','FEDERICO RIZZO','CHIARA LOMBARDI','GABRIELE GALLO','GINEVRA CONTI','ALESSANDRO DE LUCA','LORENZO GRECO','EMMA BRUNO','PIETRO COLOMBO','VIOLA FONTANA','MARCO VILLA','CAMILLA RUSSO','EDOARDO MESSINA','ANNA SERRA','FILIPPO MAZZA','BIANCA PELLEGRINI','LUCA MARCHETTI','GIORGIA FERRETTI'];
-  dateData={};presenze={};pre={};post={};childDiets={};childGender={};childDeleghe={};childContatti={};childAge={};childNotes={};
+  dateData={};presenze={};pre={};post={};childDiets={};childGender={};childDeleghe={};childContatti={};childAge={};childNotes={};childLastModified={};
   holidays={};dayNotes={};
   className='Chioccioline';schoolName='Scuola dell\'Infanzia di Bonirola';teacher1='';teacher2='';
+  classes={};currentClassId='';
   currentDate=new Date();
   search='';selectedChild=-1;showDietModal=-1;
 }
 
 function saveState(){
-  saveCurrentDateData();
+  saveCurrentClassData();
   if(currentUser){
-    try{localStorage.setItem(getStorageKey(),JSON.stringify({children:children,dateData:dateData,childDiets:childDiets,childGender:childGender,childDeleghe:childDeleghe,childContatti:childContatti,childLastModified:childLastModified,childAge:childAge,childNotes:childNotes,sortMode:sortMode,currentDate:dateToInput(currentDate),className:className,schoolName:schoolName,teacher1:teacher1,teacher2:teacher2,holidays:holidays,dayNotes:dayNotes}));}catch(e){}
+    try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:classes,currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
     saveToFirestore();
   }
 }
@@ -378,28 +477,37 @@ function loadState(){
   try{
     var d=JSON.parse(localStorage.getItem(getStorageKey()));
     if(d){
-      if(d.children){children=d.children;for(var li=0;li<children.length;li++){children[li]=children[li].toUpperCase();}}
-      if(d.dateData) dateData=d.dateData;
-      if(d.childDiets) childDiets=d.childDiets;
-      if(d.childGender) childGender=d.childGender;
-      if(d.childDeleghe) childDeleghe=d.childDeleghe;
-      if(d.childContatti) childContatti=d.childContatti;
-      if(d.childLastModified) childLastModified=d.childLastModified;
-      if(d.childAge) childAge=d.childAge;
-      if(d.childNotes) childNotes=d.childNotes;
-      if(d.sortMode) sortMode=d.sortMode;
-      if(!d.dateData&&(d.presenze||d.pre||d.post)){
-        var key=d.currentDate||dateToKey(new Date());
-        dateData[key]={presenze:d.presenze||{},pre:d.pre||{},post:d.post||{}};
+      if(d.classes){
+        classes=d.classes;
+        currentClassId=d.currentClassId||'';
+        if(d.schoolName) schoolName=d.schoolName;
+        if(d.currentDate){ try{currentDate=new Date(d.currentDate+'T12:00:00');}catch(e){currentDate=new Date();} }
+        ensureDefaultClass();
+      }else{
+        // OLD FORMAT - migrate to classes
+        if(d.children){children=d.children;for(var li=0;li<children.length;li++){children[li]=children[li].toUpperCase();}}
+        if(d.dateData) dateData=d.dateData;
+        if(d.childDiets) childDiets=d.childDiets;
+        if(d.childGender) childGender=d.childGender;
+        if(d.childDeleghe) childDeleghe=d.childDeleghe;
+        if(d.childContatti) childContatti=d.childContatti;
+        if(d.childLastModified) childLastModified=d.childLastModified;
+        if(d.childAge) childAge=d.childAge;
+        if(d.childNotes) childNotes=d.childNotes;
+        if(d.sortMode) sortMode=d.sortMode;
+        if(!d.dateData&&(d.presenze||d.pre||d.post)){
+          var key=d.currentDate||dateToKey(new Date());
+          dateData[key]={presenze:d.presenze||{},pre:d.pre||{},post:d.post||{}};
+        }
+        if(d.currentDate){ try{currentDate=new Date(d.currentDate+'T12:00:00');}catch(e){currentDate=new Date();} }
+        if(d.className) className=d.className;
+        if(d.schoolName) schoolName=d.schoolName;
+        if(d.teacher1!==undefined) teacher1=d.teacher1;
+        if(d.teacher2!==undefined) teacher2=d.teacher2;
+        if(d.holidays) holidays=d.holidays;
+        if(d.dayNotes) dayNotes=d.dayNotes;
+        ensureDefaultClass();
       }
-      if(d.currentDate){ try{currentDate=new Date(d.currentDate+'T12:00:00');}catch(e){currentDate=new Date();} }
-      else if(typeof d.dateIndex==='number'){ /* legacy: ignore old dateIndex */ }
-      if(d.className) className=d.className;
-      if(d.schoolName) schoolName=d.schoolName;
-      if(d.teacher1!==undefined) teacher1=d.teacher1;
-      if(d.teacher2!==undefined) teacher2=d.teacher2;
-      if(d.holidays) holidays=d.holidays;
-      if(d.dayNotes) dayNotes=d.dayNotes;
     }
   }catch(e){}
   var key=getCurrentDateKey();
@@ -416,7 +524,7 @@ function saveToFirestore(){
 }
 function doSaveToFirestore(){
   if(!currentUser||!db) return;
-  var data={children:children,className:className,schoolName:schoolName,teacher1:teacher1,teacher2:teacher2,holidays:holidays,dayNotes:dayNotes,dateData:dateData,childDiets:childDiets,childGender:childGender,childDeleghe:childDeleghe,childContatti:childContatti,childLastModified:childLastModified,childAge:childAge,childNotes:childNotes,sortMode:sortMode,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+  var data={classes:classes,currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
   db.collection('users').doc(currentUser.uid).set(data,{merge:true})
     .then(function(){syncStatus='synced';renderSyncBar();setTimeout(function(){if(syncStatus==='synced'){syncStatus='idle';renderSyncBar();}},3000);})
     .catch(function(err){console.error('Firestore save error:',err);syncStatus='error';renderSyncBar();});
@@ -429,26 +537,36 @@ function loadFromFirestore(uid){
     .then(function(doc){
       if(doc.exists){
         var d=doc.data();
-        if(d.children&&d.children.length>0){children=d.children;for(var ui=0;ui<children.length;ui++){children[ui]=children[ui].toUpperCase();}}
-        if(d.className) className=d.className;
-      if(d.schoolName) schoolName=d.schoolName;
-      if(d.teacher1!==undefined) teacher1=d.teacher1;
-      if(d.teacher2!==undefined) teacher2=d.teacher2;
-      if(d.holidays) holidays=d.holidays;
-      if(d.dayNotes) dayNotes=d.dayNotes;
-        if(d.dateData) dateData=d.dateData;
-        if(d.childDiets) childDiets=d.childDiets;
-        if(d.childGender) childGender=d.childGender;
-        if(d.childDeleghe) childDeleghe=d.childDeleghe;
-        if(d.childContatti) childContatti=d.childContatti;
-        if(d.childLastModified) childLastModified=d.childLastModified;
-        if(d.childAge) childAge=d.childAge;
-        if(d.childNotes) childNotes=d.childNotes;
-        if(d.sortMode) sortMode=d.sortMode;
+        if(d.classes){
+          classes=d.classes;
+          currentClassId=d.currentClassId||'';
+          if(d.schoolName) schoolName=d.schoolName;
+          ensureDefaultClass();
+        }else{
+          // OLD FORMAT - migrate
+          if(d.children&&d.children.length>0){children=d.children;for(var ui=0;ui<children.length;ui++){children[ui]=children[ui].toUpperCase();}}
+          if(d.className) className=d.className;
+          if(d.schoolName) schoolName=d.schoolName;
+          if(d.teacher1!==undefined) teacher1=d.teacher1;
+          if(d.teacher2!==undefined) teacher2=d.teacher2;
+          if(d.holidays) holidays=d.holidays;
+          if(d.dayNotes) dayNotes=d.dayNotes;
+          if(d.dateData) dateData=d.dateData;
+          if(d.childDiets) childDiets=d.childDiets;
+          if(d.childGender) childGender=d.childGender;
+          if(d.childDeleghe) childDeleghe=d.childDeleghe;
+          if(d.childContatti) childContatti=d.childContatti;
+          if(d.childLastModified) childLastModified=d.childLastModified;
+          if(d.childAge) childAge=d.childAge;
+          if(d.childNotes) childNotes=d.childNotes;
+          if(d.sortMode) sortMode=d.sortMode;
+          ensureDefaultClass();
+        }
         var key=getCurrentDateKey();var dd=dateData[key];
         if(dd){presenze=dd.presenze||{};pre=dd.pre||{};post=dd.post||{};}
         else{presenze={};pre={};post={};}
-        try{localStorage.setItem(getStorageKey(),JSON.stringify({children:children,dateData:dateData,childDiets:childDiets,childGender:childGender,childDeleghe:childDeleghe,childContatti:childContatti,childLastModified:childLastModified,childAge:childAge,childNotes:childNotes,sortMode:sortMode,currentDate:dateToInput(currentDate),className:className,schoolName:schoolName,teacher1:teacher1,teacher2:teacher2,holidays:holidays,dayNotes:dayNotes}));}catch(e){}
+        // Save in new format
+        try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:classes,currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
       }else{
         try{localStorage.removeItem(getStorageKey());}catch(e){}
       }
@@ -570,6 +688,27 @@ function render(){
   else{html+='<div class="auth-bar info"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>Effettua il login con Google per salvare i dati nel cloud</span></div>';}
 
   html+='<div id="sync-bar" class="sync-bar" style="display:none"></div>';
+
+  // Class tabs
+  html+='<div class="class-tabs">';
+  html+='<span class="class-tabs-label">Classi:</span>';
+  var classKeys=Object.keys(classes);
+  for(var cki=0;cki<classKeys.length;cki++){
+    var cId=classKeys[cki];
+    var cName=classes[cId].name||'Classe';
+    var cPin=classes[cId].pin||'';
+    var isActive=cId===currentClassId;
+    html+='<div class="class-tab'+(isActive?' active':'')+'" onclick="App.switchClass(\''+cId+'\')">';
+    html+=esc(cName)+' <span style="font-size:11px;opacity:0.6">('+((classes[cId].children||[]).length)+')</span>';
+    if(cPin){html+='<span style="font-size:10px;opacity:0.5" title="Classe protetta da PIN">\ud83d\udd12</span>';}
+    if(classKeys.length>1){
+      html+='<button class="class-tab-del" onclick="event.stopPropagation();App.deleteClass(\''+cId+'\')" title="Elimina classe '+esc(cName)+'">\u00d7</button>';
+    }
+    html+='</div>';
+  }
+  html+='<div class="class-tab-add" onclick="App.addClass()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Aggiungi Classe</div>';
+  if(currentUser&&currentClassId){html+='<div class="class-tab" style="border-color:#ffc107;background:#fff8e1;color:#856404;font-size:11px" onclick="App.managePin()" title="Gestisci PIN classe">\ud83d\udd12 PIN</div>';}
+  html+='</div>';
 
   html+='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">';
   html+='<div class="btn-row">';
@@ -861,7 +1000,7 @@ function renderChildDetail(idx){
 window.App={
   login:handleLogin,
   startEditClass:function(){editingClass=true;render();},
-  finishEditClass:function(){var ci=document.getElementById('classInput');if(ci&&ci.value.trim())className=ci.value.trim();editingClass=false;saveState();render();},
+  finishEditClass:function(){var ci=document.getElementById('classInput');if(ci&&ci.value.trim()){className=ci.value.trim().toUpperCase();if(currentClassId&&classes[currentClassId])classes[currentClassId].name=className;}editingClass=false;saveState();render();},
   startEditSchool:function(){editingSchool=true;render();},
   finishEditSchool:function(){var si=document.getElementById('schoolInput');if(si&&si.value.trim())schoolName=si.value.trim();editingSchool=false;saveState();render();},
   startEditTeacher1:function(){editingTeacher1=true;render();},
@@ -874,6 +1013,73 @@ window.App={
   showChildDetail:function(i){selectedChild=i;render();},
   closeChildDetail:function(){selectedChild=-1;render();},
   editChildFromDetail:function(i){selectedChild=-1;editingChild=i;editValue=children[i];render();},
+  addClass:function(){
+    if(!currentUser){alert('Effettua il login per aggiungere una classe.');return;}
+    var name=prompt('Nome della nuova classe\n(es. Farfalle, Cuori, Stelle):');
+    if(!name||!name.trim()) return;
+    name=name.trim().toUpperCase();
+    var pin=prompt('Crea un PIN per questa classe (4-6 cifre):\nIl PIN serve per proteggere l\'eliminazione della classe.');
+    if(pin===null) return;
+    if(pin.trim()&&!/^\d{4,6}$/.test(pin.trim())){alert('Il PIN deve essere di 4-6 cifre.');return;}
+    saveCurrentClassData();
+    var newId=generateClassId();
+    classes[newId]={
+      id:newId,
+      name:name,
+      pin:pin.trim(),
+      children:[],
+      childDiets:{},childGender:{},childDeleghe:{},childContatti:{},
+      childLastModified:{},childAge:{},childNotes:{},
+      dateData:{},holidays:{},dayNotes:{},
+      teacher1:'',teacher2:'',sortMode:'default'
+    };
+    currentClassId=newId;
+    loadClassData(newId);
+    saveState();render();
+  },
+  deleteClass:function(classId){
+    if(!classes[classId]) return;
+    if(Object.keys(classes).length<=1){alert('Non puoi eliminare l\'unica classe.');return;}
+    var cName=classes[classId].name||'Classe';
+    var cPin=classes[classId].pin||'';
+    if(cPin){
+      var entered=prompt('Inserisci il PIN per eliminare la classe "'+cName+'":');
+      if(entered===null) return;
+      if(entered!==cPin){alert('PIN errato. Impossibile eliminare la classe.');return;}
+    }else{
+      if(!confirm('Vuoi eliminare la classe "'+cName+'"?\nTutti i dati della classe verranno persi.')) return;
+    }
+    delete classes[classId];
+    if(currentClassId===classId){
+      var firstKey=Object.keys(classes)[0];
+      if(firstKey) loadClassData(firstKey);
+    }
+    saveState();render();
+  },
+  switchClass:function(classId){
+    if(classId===currentClassId) return;
+    saveCurrentClassData();
+    loadClassData(classId);
+    search='';selectedChild=-1;showDietModal=-1;
+    saveState();render();
+  },
+  managePin:function(){
+    if(!currentClassId||!classes[currentClassId]) return;
+    var cName=classes[currentClassId].name||'Classe';
+    var currentPin=classes[currentClassId].pin||'';
+    var msg=currentPin?'La classe "'+cName+'" ha un PIN impostato.\n\nInserisci il nuovo PIN per cambiarlo (4-6 cifre),\no lascia vuoto per rimuoverlo:':'La classe "'+cName+'" non ha un PIN.\n\nInserisci un PIN (4-6 cifre) per proteggere l\'eliminazione:';
+    var newPin=prompt(msg);
+    if(newPin===null) return;
+    if(newPin.trim()&&!/^\d{4,6}$/.test(newPin.trim())){alert('Il PIN deve essere di 4-6 cifre.');return;}
+    if(currentPin&&newPin.trim()!==''){
+      var verify=prompt('Inserisci il PIN attuale per confermare:');
+      if(verify===null) return;
+      if(verify!==currentPin){alert('PIN attuale errato.');return;}
+    }
+    classes[currentClassId].pin=newPin.trim();
+    saveState();render();
+    alert(newPin.trim()?'PIN impostato con successo!':'PIN rimosso.');
+  },
   addChild:function(){
     var name=prompt('Nome del nuovo bambino\n(es. Rossi Luca):');
     if(!name||!name.trim()) return;
@@ -1392,7 +1598,7 @@ window.App={
     childDiets[idx].note=note;
     if(firestoreSaveTimer) clearTimeout(firestoreSaveTimer);
     syncStatus='saving';renderSyncBar();
-    firestoreSaveTimer=setTimeout(function(){doSaveToFirestore();try{localStorage.setItem(getStorageKey(),JSON.stringify({children:children,dateData:dateData,childDiets:childDiets,childGender:childGender,childDeleghe:childDeleghe,childContatti:childContatti,childLastModified:childLastModified,childAge:childAge,sortMode:sortMode,currentDate:dateToInput(currentDate),className:className}));}catch(e){}},1500);
+    firestoreSaveTimer=setTimeout(function(){saveCurrentClassData();doSaveToFirestore();try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:classes,currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}},1500);
   },
   importData:function(){
     var input=document.createElement('input');input.type='file';input.accept='.json';
@@ -1401,10 +1607,22 @@ window.App={
       reader.onload=function(ev){
         try{
           var d=JSON.parse(ev.target.result);
-          if(d.children)children=d.children;
-          if(d.dateData)dateData=d.dateData;else if(d.presenze||d.pre||d.post){var key=getCurrentDateKey();dateData[key]={presenze:d.presenze||{},pre:d.pre||{},post:d.post||{}};}
-          if(d.childDiets)childDiets=d.childDiets;
-          if(d.className)className=d.className;
+          if(d.classes){
+            classes=d.classes;currentClassId=d.currentClassId||'';
+            if(d.schoolName) schoolName=d.schoolName;
+            ensureDefaultClass();
+          }else{
+            if(d.children)children=d.children;for(var ii=0;ii<children.length;ii++){children[ii]=children[ii].toUpperCase();}
+            if(d.dateData)dateData=d.dateData;else if(d.presenze||d.pre||d.post){var key=getCurrentDateKey();dateData[key]={presenze:d.presenze||{},pre:d.pre||{},post:d.post||{}};}
+            if(d.childDiets)childDiets=d.childDiets;
+            if(d.className)className=d.className;
+            if(d.childGender)childGender=d.childGender;
+            if(d.childDeleghe)childDeleghe=d.childDeleghe;
+            if(d.childContatti)childContatti=d.childContatti;
+            if(d.childAge)childAge=d.childAge;
+            if(d.childNotes)childNotes=d.childNotes;
+            ensureDefaultClass();
+          }
           var ckey=getCurrentDateKey();var dd=dateData[ckey];if(dd){presenze=dd.presenze||{};pre=dd.pre||{};post=dd.post||{};}else{presenze={};pre={};post={};}
           saveState();render();alert('Dati importati con successo!');
         }catch(err){alert('File non valido.');}
@@ -1412,8 +1630,8 @@ window.App={
     };input.click();
   },
   backupData:function(){
-    saveCurrentDateData();
-    var data=JSON.stringify({children:children,dateData:dateData,childDiets:childDiets,className:className,dateExport:new Date().toISOString()},null,2);
+    saveCurrentClassData();
+    var data=JSON.stringify({classes:classes,currentClassId:currentClassId,schoolName:schoolName,className:className,dateExport:new Date().toISOString()},null,2);
     var blob=new Blob([data],{type:'application/json'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);
     a.download='registro-presenze-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href);
   },
@@ -1444,6 +1662,7 @@ window.App={
 };
 
 initFirebase();
+ensureDefaultClass();
 render();
 
 })();
