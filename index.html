@@ -212,10 +212,10 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .class-tab-del{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:none;background:rgba(255,255,255,0.15);color:rgba(255,255,255,0.7);font-size:13px;font-weight:700;cursor:pointer;padding:0;margin-left:2px;transition:all 0.15s;line-height:1}
 .class-tab.active .class-tab-del{background:rgba(255,255,255,0.2);color:rgba(255,255,255,0.7)}
 .class-tab-del:hover{background:#dc3545!important;color:white!important}
-.class-tab-add{display:inline-flex;align-items:center;gap:4px;padding:7px 14px;border-radius:8px;border:2px dashed rgba(40,167,69,0.7);background:rgba(40,167,69,0.15);font-size:13px;font-weight:600;color:#5dff8e;cursor:pointer;font-family:inherit;transition:all 0.15s;white-space:nowrap}
-.class-tab-add:hover{border-color:#5dff8e;background:rgba(40,167,69,0.25)}
+.class-tab-add{display:inline-flex;align-items:center;gap:4px;padding:7px 14px;border-radius:8px;border:2px dashed rgba(255,255,255,0.5);background:rgba(255,255,255,0.1);font-size:13px;font-weight:600;color:white;cursor:pointer;font-family:inherit;transition:all 0.15s;white-space:nowrap}
+.class-tab-add:hover{border-color:white;background:rgba(255,255,255,0.2)}
 .class-tab-add:active{transform:scale(0.97)}
-.class-tabs-label{font-size:11px;font-weight:600;color:#e0c0f0;text-transform:uppercase;letter-spacing:0.3px;margin-right:4px}
+.class-tabs-label{font-size:11px;font-weight:600;color:white;text-transform:uppercase;letter-spacing:0.3px;margin-right:4px}
 .class-locked-overlay{position:relative;pointer-events:none;opacity:0.5}
 .class-locked-overlay .class-tabs,.class-locked-overlay .lock-bypass{pointer-events:auto;opacity:1}
 
@@ -817,8 +817,8 @@ function render(){
   if(editingSchool){html+='<input class="school-name-input" id="schoolInput" value="'+esc(schoolName)+'" onblur="App.finishEditSchool()" onkeydown="if(event.key===\'Enter\')App.finishEditSchool()"/>';}
   else{html+='<div class="school-name" onclick="App.startEditSchool()" title="Clicca per modificare">'+esc(schoolName)+'</div>';}
   var displayClassName=(currentClassId&&classes[currentClassId])?classes[currentClassId].name:className;
-  if(editingClass){html+='<input class="class-name-input" id="classInput" value="'+esc(displayClassName)+'" onblur="App.finishEditClass()" onkeydown="if(event.key===\'Enter\')App.finishEditClass()"/>';}
-  else{html+='<div class="class-name" onclick="App.startEditClass()" title="Clicca per modificare">'+esc(displayClassName)+'</div>';}
+  if(editingClass){html+='<input class="class-name-input" id="classInput" value="'+esc(displayClassName.toUpperCase())+'" onblur="App.finishEditClass()" onkeydown="if(event.key===\'Enter\')App.finishEditClass()"/>';}
+  else{html+='<div class="class-name" onclick="App.startEditClass()" title="Clicca per modificare">'+esc(displayClassName.toUpperCase())+'</div>';}
   html+='<div class="class-sub">REGISTRO DI CLASSE</div>';
   html+='<div class="header-teachers">';
   html+='<div class="teacher-field"><span>Insegnante 1:</span>';
@@ -854,8 +854,8 @@ function render(){
     var coorUnlocked=unlockedClasses[COORDINATRICE_ID]||!coorPin;
     var coorChildren=0;
     for(var ci2=0;ci2<classKeys.length;ci2++){if(classKeys[ci2]!==COORDINATRICE_ID) coorChildren+=(classes[classKeys[ci2]].children||[]).length;}
-    html+='<div class="class-tab'+(coorActive?' active':'')+'" style="'+(coorActive?'border-color:#ffd700;background:linear-gradient(135deg,#7b2d8e,#9c27b0);color:white':'border-color:#9c27b0;color:#9c27b0')+'" onclick="App.switchClass(\''+COORDINATRICE_ID+'\')">';
-    html+='<span style="font-size:13px">\u{1F451}</span> '+esc(coor.name)+' <span style="font-size:11px;opacity:0.6">('+coorChildren+')</span>';
+    html+='<div class="class-tab'+(coorActive?' active':'')+'" style="'+(coorActive?'border-color:#ffd700;background:linear-gradient(135deg,#7b2d8e,#9c27b0);color:white':'border-color:rgba(255,255,255,0.5);color:white')+'" onclick="App.switchClass(\''+COORDINATRICE_ID+'\')">';
+    html+='<span style="font-size:13px">\u{1F451}</span> '+esc(coor.name.toUpperCase())+' <span style="font-size:11px;opacity:0.8">('+coorChildren+')</span>';
     if(coorPin){html+='<span style="font-size:10px;opacity:0.7" title="Classe protetta da PIN">'+(coorUnlocked?'\ud83d\udd13':'\ud83d\udd12')+'</span>';}
     html+='</div>';
   }
@@ -869,14 +869,14 @@ function render(){
     var isActive=cId===currentClassId;
     var isUnlocked=unlockedClasses[cId]||!cPin;
     var tabColor=CLASS_COLORS[colorIdx%CLASS_COLORS.length];colorIdx++;
-    html+='<div class="class-tab'+(isActive?' active':'')+'" style="'+(isActive?'border-color:'+tabColor+';background:'+tabColor+';color:white':'border-color:'+tabColor+';color:'+tabColor)+'" onclick="App.switchClass(\''+cId+'\')">';
-    html+=esc(cName)+' <span style="font-size:11px;opacity:0.6">('+((classes[cId].children||[]).length)+')</span>';
+    html+='<div class="class-tab'+(isActive?' active':'')+'" style="'+(isActive?'border-color:'+tabColor+';background:'+tabColor+';color:white':'border-color:rgba(255,255,255,0.4);color:white')+'" onclick="App.switchClass(\''+cId+'\')">';
+    html+=esc(cName.toUpperCase())+' <span style="font-size:11px;opacity:0.8">('+((classes[cId].children||[]).length)+')</span>';
     if(cPin){html+='<span style="font-size:10px;opacity:0.7" title="Classe protetta da PIN">'+(isUnlocked?'\ud83d\udd13':'\ud83d\udd12')+'</span>';}
-    html+='<button class="class-tab-del" onclick="event.stopPropagation();App.deleteClass(\''+cId+'\')" title="Elimina classe '+esc(cName)+'">\u00d7</button>';
+    html+='<button class="class-tab-del" onclick="event.stopPropagation();App.deleteClass(\''+cId+'\')" title="Elimina classe '+esc(cName.toUpperCase())+'">\u00d7</button>';
     html+='</div>';
   }
   html+='<div class="class-tab-add" onclick="App.addClass()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Aggiungi Classe</div>';
-  if(currentUser&&currentClassId&&regularClassCount()>1){html+='<div class="class-tab" style="border-color:#ffc107;background:#fff8e1;color:#856404;font-size:11px" onclick="App.managePin()" title="Gestisci PIN classe">\ud83d\udd12 PIN</div>';}
+  if(currentUser&&currentClassId&&regularClassCount()>1){html+='<div class="class-tab" style="border-color:rgba(255,255,255,0.5);color:white;font-size:11px" onclick="App.managePin()" title="Gestisci PIN classe">\ud83d\udd12 PIN</div>';}
   html+='</div>';
 
   // Locked class banner
@@ -985,7 +985,7 @@ function render(){
       // Tag classe per COORDINATRICE
       if(isCoordinatrice()&&classes[COORDINATRICE_ID]&&classes[COORDINATRICE_ID].childSourceMap&&classes[COORDINATRICE_ID].childSourceMap[idx]){
         var srcInfo=classes[COORDINATRICE_ID].childSourceMap[idx];
-        html+='<span style="font-size:9px;margin-left:4px;padding:1px 5px;border-radius:4px;background:'+srcInfo.color+';opacity:0.8">'+esc(srcInfo.className)+'</span>';
+        html+='<span style="font-size:9px;margin-left:4px;padding:1px 5px;border-radius:4px;background:'+srcInfo.color+';opacity:0.8">'+esc(srcInfo.className.toUpperCase())+'</span>';
       }
       html+='</div>';
     }
