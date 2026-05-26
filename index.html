@@ -553,7 +553,7 @@ function saveToFirestore(){
 function doSaveToFirestore(){
   if(!currentUser||!db) return;
   var data={classes:classes,currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
-  db.collection('users').doc(currentUser.uid).set(data,{merge:true})
+  db.collection('users').doc(currentUser.uid).set(data)
     .then(function(){syncStatus='synced';renderSyncBar();setTimeout(function(){if(syncStatus==='synced'){syncStatus='idle';renderSyncBar();}},3000);})
     .catch(function(err){console.error('Firestore save error:',err);syncStatus='error';renderSyncBar();});
 }
