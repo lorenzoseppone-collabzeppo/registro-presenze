@@ -187,6 +187,8 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .class-tab-add:hover{border-color:#1a8c37;background:#d4f5d4}
 .class-tab-add:active{transform:scale(0.97)}
 .class-tabs-label{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.3px;margin-right:4px}
+.class-locked-overlay{position:relative;pointer-events:none;opacity:0.5}
+.class-locked-overlay .class-tabs,.class-locked-overlay .lock-bypass{pointer-events:auto;opacity:1}
 
 .edit-name-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border:1.5px solid #ccc;border-radius:8px;background:white;font-size:13px;font-weight:600;color:#555;cursor:pointer;font-family:inherit;transition:all 0.15s;white-space:nowrap}
 .edit-name-btn:hover{border-color:#007bff;color:#007bff;background:#f0f6ff}
@@ -283,6 +285,8 @@ var holidays = {};
 var dayNotes = {};
 var classes = {};
 var currentClassId = '';
+var unlockedClasses = {};
+var classLocked = false;
 
 var DAYS = ['Domenica','Luned\u00ec','Marted\u00ec','Mercoled\u00ec','Gioved\u00ec','Venerd\u00ec','Sabato'];
 var MONTHS = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
@@ -442,11 +446,31 @@ function ensureDefaultClass(){
     };
     currentClassId=defId;
     loadClassData(defId);
+    unlockedClasses[defId]=true;
   }
   if(!currentClassId){
     var firstKey=Object.keys(classes)[0];
     if(firstKey) loadClassData(firstKey);
   }
+  updateClassLockState();
+}
+
+function updateClassLockState(){
+  if(!currentClassId||!classes[currentClassId]){classLocked=false;return;}
+  var pin=classes[currentClassId].pin||'';
+  classLocked=pin&&pin.length>0&&!unlockedClasses[currentClassId];
+}
+
+function tryUnlockClass(classId){
+  if(!classes[classId]) return false;
+  var pin=classes[classId].pin||'';
+  if(!pin){unlockedClasses[classId]=true;return true;}
+  if(unlockedClasses[classId]) return true;
+  var entered=prompt('Inserisci il PIN per accedere alla classe "'+(classes[classId].name||'Classe')+'":');
+  if(entered===null) return false;
+  if(entered===pin){unlockedClasses[classId]=true;return true;}
+  alert('PIN errato!');
+  return false;
 }
 
 function getStorageKey(){
@@ -459,7 +483,7 @@ function resetAllData(){
   dateData={};presenze={};pre={};post={};childDiets={};childGender={};childDeleghe={};childContatti={};childAge={};childNotes={};childLastModified={};
   holidays={};dayNotes={};
   className='Chioccioline';schoolName='Scuola dell\'Infanzia di Bonirola';teacher1='';teacher2='';
-  classes={};currentClassId='';
+  classes={};currentClassId='';unlockedClasses={};classLocked=false;
   currentDate=new Date();
   search='';selectedChild=-1;showDietModal=-1;
 }
@@ -570,7 +594,7 @@ function loadFromFirestore(uid){
       }else{
         try{localStorage.removeItem(getStorageKey());}catch(e){}
       }
-      firestoreLoaded=true;syncStatus='synced';render();
+      firestoreLoaded=true;syncStatus='synced';updateClassLockState();render();
       setTimeout(function(){if(syncStatus==='synced'){syncStatus='idle';renderSyncBar();}},3000);
     })
     .catch(function(err){console.error('Firestore load error:',err);firestoreLoaded=true;syncStatus='error';render();});
@@ -698,9 +722,10 @@ function render(){
     var cName=classes[cId].name||'Classe';
     var cPin=classes[cId].pin||'';
     var isActive=cId===currentClassId;
+    var isUnlocked=unlockedClasses[cId]||!cPin;
     html+='<div class="class-tab'+(isActive?' active':'')+'" onclick="App.switchClass(\''+cId+'\')">';
     html+=esc(cName)+' <span style="font-size:11px;opacity:0.6">('+((classes[cId].children||[]).length)+')</span>';
-    if(cPin){html+='<span style="font-size:10px;opacity:0.5" title="Classe protetta da PIN">\ud83d\udd12</span>';}
+    if(cPin){html+='<span style="font-size:10px;opacity:0.5" title="Classe protetta da PIN">'+(isUnlocked?'\ud83d\udd13':'\ud83d\udd12')+'</span>';}
     if(classKeys.length>1){
       html+='<button class="class-tab-del" onclick="event.stopPropagation();App.deleteClass(\''+cId+'\')" title="Elimina classe '+esc(cName)+'">\u00d7</button>';
     }
@@ -710,16 +735,28 @@ function render(){
   if(currentUser&&currentClassId){html+='<div class="class-tab" style="border-color:#ffc107;background:#fff8e1;color:#856404;font-size:11px" onclick="App.managePin()" title="Gestisci PIN classe">\ud83d\udd12 PIN</div>';}
   html+='</div>';
 
+  // Locked class banner
+  if(classLocked){
+    html+='<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;margin-bottom:12px;background:#f8d7da;border:2px solid #dc3545;border-radius:12px">';
+    html+='<span style="font-size:24px">\ud83d\udd12</span>';
+    html+='<div style="flex:1"><div style="font-size:15px;font-weight:700;color:#721c24">Classe bloccata</div><div style="font-size:12px;color:#a83636;margin-top:2px">Inserisci il PIN per sbloccare e fare modifiche</div></div>';
+    html+='<button class="btn" style="background:#dc3545;color:white;border-color:#dc3545;font-weight:700" onclick="App.unlockClass()">\ud83d\udd13 Sblocca</button>';
+    html+='</div>';
+  }
+
+  // Wrap locked content
+  if(classLocked){html+='<div class="class-locked-overlay">';}
+
   html+='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">';
   html+='<div class="btn-row">';
   html+='<button class="btn" onclick="App.login()"><span class="google-icon"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg></span>'+(loginLoading?'...':(currentUser?'Logout':'Login'))+'</button>';
   html+='<button class="btn" onclick="App.goToday()">Oggi</button>';
   html+='</div><div class="btn-row">';
-  html+='<button class="btn" onclick="App.resetDay()">Azzera giorno</button>';
+  html+='<button class="btn" '+(classLocked?'disabled style="opacity:0.4;cursor:not-allowed"':'')+' onclick="App.resetDay()">Azzera giorno</button>';
   html+='</div><div class="btn-row">';
   html+='<button class="btn" onclick="App.backupData()">Backup</button>';
   html+='<button class="btn" onclick="App.importData()">Importa</button>';
-  html+='<button class="btn btn-danger" onclick="App.resetMonth()">Azzera mese</button>';
+  html+='<button class="btn btn-danger" '+(classLocked?'disabled style="opacity:0.4;cursor:not-allowed"':'')+' onclick="App.resetMonth()">Azzera mese</button>';
   html+='<button class="btn" onclick="App.viewMonth()">Mese</button>';
   html+='<button class="btn btn-danger-fill" onclick="App.exportPDF()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> PDF</button>';
   html+='<button class="btn" style="background:#e67e00;color:white;border-color:#e67e00" onclick="App.exportPDFPrePost()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> PDF PRE/POST</button>';
@@ -737,8 +774,8 @@ function render(){
   var dayOff=isDayOff();
   if(isWeekend()){html+='<div style="text-align:center;padding:6px 10px;background:#f8d7da;color:#721c24;border-radius:8px;font-size:12px;font-weight:600;margin:6px 0">Weekend \u2014 Non scolastico</div>';}
   else if(isHoliday()){html+='<div style="text-align:center;padding:6px 10px;background:#fff3cd;color:#856404;border-radius:8px;font-size:12px;font-weight:600;margin:6px 0">\ud83c\udf1f Festivo \u2014 '+esc(holidays[getCurrentDateKey()]||'')+'</div>';}
-  // Holiday toggle button (only on weekdays)
-  if(!isWeekend()){
+  // Holiday toggle button (only on weekdays, only if unlocked)
+  if(!isWeekend()&&!classLocked){
     if(isHoliday()){html+='<button class="btn" style="width:100%;margin:4px 0" onclick="App.removeHoliday()">Rimuovi festivo</button>';}
     else{html+='<button class="btn" style="width:100%;margin:4px 0" onclick="App.markHoliday()">Segna come festivo</button>';}
   }
@@ -749,8 +786,8 @@ function render(){
   html+='</div>';
   // Daily notes
   var todayNote=dayNotes[getCurrentDateKey()]||'';
-  var noteDisabled=dayOff||!currentUser;
-  var notePlaceholder=currentUser?'Note del giorno...':'Effettua il login per salvare le note';
+  var noteDisabled=dayOff||!currentUser||classLocked;
+  var notePlaceholder=!currentUser?'Effettua il login per salvare le note':classLocked?'Sblocca la classe per scrivere note':'Note del giorno...';
   html+='<div style="margin-top:8px">';
   if(!currentUser){html+='<div style="font-size:10px;color:#dc3545;font-weight:600;margin-bottom:3px;text-align:center">⚠ Le note si salvano solo col login</div>';}
   html+='<textarea id="dayNoteInput" placeholder="'+notePlaceholder+'" style="width:100%;min-height:36px;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:12px;font-family:inherit;resize:vertical;outline:none;color:#333;background:'+(noteDisabled?'#f5f5f5':'white')+'" oninput="App.updateDayNote(this.value)" '+(noteDisabled?'disabled':'')+'>'+esc(todayNote)+'</textarea></div>';
@@ -775,15 +812,18 @@ function render(){
   html+='</div>';
 
   var dayOff=isDayOff();
+  var locked=classLocked;
+  var noEdit=dayOff||locked;
   html+='<div class="roster"><div class="roster-header">';
   html+='<span style="color:#5b9bd5">COGNOME E NOME</span>';
   html+='<div class="roster-col"><label class="label-age">Età</label></div>';
   html+='<div class="roster-col"><label class="label-diet">Dieta</label></div>';
-  html+='<div class="roster-col"><label class="label-presenza">Presenza</label>'+(dayOff?'':'<input type="checkbox" class="select-all-check" '+(totalPresenze===children.length&&children.length>0?'checked':'')+' onchange="App.selectAllPresenza(this.checked)"/>')+'</div>';
-  html+='<div class="roster-col"><label class="label-pre">Pre</label>'+(dayOff?'':'<input type="checkbox" class="select-all-check" '+(totalPre===children.length&&children.length>0?'checked':'')+' onchange="App.selectAllPre(this.checked)"/>')+'</div>';
-  html+='<div class="roster-col"><label class="label-post">Post</label>'+(dayOff?'':'<input type="checkbox" class="select-all-check" '+(totalPost===children.length&&children.length>0?'checked':'')+' onchange="App.selectAllPost(this.checked)"/>')+'</div>';
+  html+='<div class="roster-col"><label class="label-presenza">Presenza</label>'+(noEdit?'':'<input type="checkbox" class="select-all-check" '+(totalPresenze===children.length&&children.length>0?'checked':'')+' onchange="App.selectAllPresenza(this.checked)"/>')+'</div>';
+  html+='<div class="roster-col"><label class="label-pre">Pre</label>'+(noEdit?'':'<input type="checkbox" class="select-all-check" '+(totalPre===children.length&&children.length>0?'checked':'')+' onchange="App.selectAllPre(this.checked)"/>')+'</div>';
+  html+='<div class="roster-col"><label class="label-post">Post</label>'+(noEdit?'':'<input type="checkbox" class="select-all-check" '+(totalPost===children.length&&children.length>0?'checked':'')+' onchange="App.selectAllPost(this.checked)"/>')+'</div>';
   html+='</div>';
   if(dayOff){html+='<div style="text-align:center;padding:20px;color:#999;font-size:13px;font-style:italic">'+(isWeekend()?'Weekend \u2014 nessuna presenza':'Giorno festivo \u2014 nessuna presenza')+'</div>';}
+  else if(locked){html+='<div style="text-align:center;padding:20px;color:#dc3545;font-size:13px;font-weight:600">\ud83d\udd12 Classe bloccata \u2014 Inserisci il PIN per modificare le presenze</div>';}
 
   var filtered=getFilteredChildren();
 
@@ -801,9 +841,9 @@ function render(){
     }
     html+='</div>';
     var age=childAge[idx]||'';
-    html+='<div class="age-cell"><div class="age-circle '+(age?'has-age':'')+'" onclick="App.editAge('+idx+')" title="Clicca per inserire età">'+(age?esc(String(age)):'-')+'</div></div>';
-    html+='<div class="diet-cell"><button class="diet-btn '+(hasDiet?'has-diet':'')+'" onclick="App.openDietModal('+idx+')" title="Dieta">\ud83c\udf7d</button></div>';
-    if(dayOff){
+    html+='<div class="age-cell"><div class="age-circle '+(age?'has-age':'')+'" '+(locked?'':'onclick="App.editAge('+idx+')"')+' title="Clicca per inserire età">'+(age?esc(String(age)):'-')+'</div></div>';
+    html+='<div class="diet-cell"><button class="diet-btn '+(hasDiet?'has-diet':'')+'" '+(locked?'disabled style="opacity:0.5;cursor:not-allowed"':'onclick="App.openDietModal('+idx+')"')+' title="Dieta">\ud83c\udf7d</button></div>';
+    if(noEdit){
       html+='<div class="check-cell"><input type="checkbox" disabled style="opacity:0.3"/></div>';
       html+='<div class="check-cell"><button class="pre-btn" disabled style="opacity:0.3;cursor:not-allowed">PRE</button></div>';
       html+='<div class="check-cell"><button class="post-btn" disabled style="opacity:0.3;cursor:not-allowed">POST</button></div>';
@@ -816,12 +856,15 @@ function render(){
   }
   html+='</div>';
   // Add child button
-  html+='<button class="btn" style="width:100%;margin-top:8px;justify-content:center;border:2px dashed #28a745;color:#28a745;font-weight:700;background:#f0fff4" onclick="App.addChild()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Aggiungi Bambino</button>';
+  if(!locked){html+='<button class="btn" style="width:100%;margin-top:8px;justify-content:center;border:2px dashed #28a745;color:#28a745;font-weight:700;background:#f0fff4" onclick="App.addChild()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Aggiungi Bambino</button>';}
   html+='</div>';
 
   html+='<div class="stat-card"><div><div class="stat-label">Totale presenze</div><div class="stat-sub">'+esc(dateToFull(currentDate))+'</div></div><div class="stat-value" style="color:#28a745">'+totalPresenze+'</div></div>';
   html+='<div class="stat-card"><div><div class="stat-label">Totale pre</div><div class="stat-sub">Ingressi Anticipati</div></div><div class="stat-value" style="color:#e67e00">'+totalPre+'</div></div>';
   html+='<div class="stat-card"><div><div class="stat-label">Totale post</div><div class="stat-sub">Uscite Posticipate</div></div><div class="stat-value" style="color:#007bff">'+totalPost+'</div></div>';
+
+  // Close locked overlay
+  if(classLocked){html+='</div>';}
 
   if(selectedChild>=0){html+=renderChildDetail(selectedChild);}
   if(showDietModal>=0){html+=renderDietModal(showDietModal);}
@@ -886,20 +929,20 @@ function renderChildDetail(idx){
   var dietInfo=getDietLabel(idx);
   var hasDiet=childDiets[idx]&&childDiets[idx].type&&childDiets[idx].type!=='nessuna';
   var daysShort=['dom','lun','mar','mer','gio','ven','sab'];
+  var locked=classLocked;
 
   var html='<div class="child-detail-overlay" onclick="if(event.target===this)App.closeChildDetail()">';
   html+='<div class="child-detail">';
   html+='<div class="child-detail-header">';
   var gClassD=getGenderClass(idx);
-  html+='<div class="child-detail-avatar '+gClassD+'" onclick="App.toggleGender('+idx+')" title="Clicca per cambiare genere">'+getInitials(childName)+'</div>';
+  html+='<div class="child-detail-avatar '+gClassD+'" '+(locked?'':'onclick="App.toggleGender('+idx+')" ')+'title="'+(locked?'':'Clicca per cambiare genere')+'">'+getInitials(childName)+'</div>';
   html+='<div style="flex:1;min-width:0"><div class="child-detail-name-row"><span class="child-detail-name">'+esc(childName)+'</span>';
   var gLabel=getGender(idx)==='f'?'Femmina':'Maschio';
-  html+='<button class="edit-name-btn" onclick="App.toggleGender('+idx+')" title="Cambia genere">'+(getGender(idx)==='f'?'👧':'👦')+' '+gLabel+'</button>';
-  html+='<button class="edit-name-btn" onclick="App.editChildFromDetail('+idx+')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Modifica</button>';
+  if(!locked){html+='<button class="edit-name-btn" onclick="App.toggleGender('+idx+')" title="Cambia genere">'+(getGender(idx)==='f'?'👧':'👦')+' '+gLabel+'</button>';html+='<button class="edit-name-btn" onclick="App.editChildFromDetail('+idx+')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Modifica</button>';}else{html+='<span style="font-size:12px;color:#888">'+(getGender(idx)==='f'?'👧':'👦')+' '+gLabel+'</span>';}
   html+='</div>';
   if(hasDiet){html+='<div class="child-detail-diet">🍽 '+esc(dietInfo)+(childDiets[idx].note?' - '+esc(childDiets[idx].note):'')+'</div>';}
   var badgeAge=childAge[idx]||'';
-  html+='<div class="child-detail-diet" style="cursor:pointer" onclick="App.editAge('+idx+')" title="Clicca per modificare età">🎂 '+(badgeAge?esc(badgeAge)+' anni':'Aggiungi età')+'</div>';
+  html+='<div class="child-detail-diet" style="'+(locked?'':'cursor:pointer')+'" '+(locked?'':'onclick="App.editAge('+idx+')" ')+''+(locked?'':'title="Clicca per modificare età"')+'>🎂 '+(badgeAge?esc(badgeAge)+' anni':'Aggiungi età')+'</div>';
   html+='</div></div>';
 
   html+='<div class="child-detail-stats">';
@@ -949,16 +992,14 @@ function renderChildDetail(idx){
     for(var di2=0;di2<deleghe.length;di2++){
       html+='<div class="deleghe-item">';
       html+='<span class="deleghe-item-name">'+esc(deleghe[di2])+'</span>';
-      html+='<button class="deleghe-item-remove" onclick="App.removeDelega('+idx+','+di2+')" title="Rimuovi">\u00d7</button>';
+      if(!locked){html+='<button class="deleghe-item-remove" onclick="App.removeDelega('+idx+','+di2+')" title="Rimuovi">\u00d7</button>';}
       html+='</div>';
     }
   }else{
     html+='<div class="deleghe-empty">Nessuna delega aggiunta</div>';
   }
-  html+='<div class="deleghe-add">';
-  html+='<input type="text" id="delegaInput" placeholder="Nome delegato..." onkeydown="if(event.key===\'Enter\')App.addDelega('+idx+')"/>';
-  html+='<button onclick="App.addDelega('+idx+')">Aggiungi</button>';
-  html+='</div></div>';
+  if(!locked){html+='<div class="deleghe-add">';html+='<input type="text" id="delegaInput" placeholder="Nome delegato..." onkeydown="if(event.key===\'Enter\')App.addDelega('+idx+')"/>';html+='<button onclick="App.addDelega('+idx+')">Aggiungi</button>';html+='</div>';}
+  html+='</div>';
 
   // Contatti box
   var contatti=childContatti[idx]||[];
@@ -969,29 +1010,26 @@ function renderChildDetail(idx){
       html+='<div class="deleghe-item">';
       html+='<span class="deleghe-item-name">'+esc(contatti[ci].nome||'')+'</span>';
       html+='<a class="contatto-call-btn" href="tel:'+esc(contatti[ci].telefono||'')+'" title="Chiama '+esc(contatti[ci].nome||'')+'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg> '+esc(contatti[ci].telefono||'')+'</a>';
-      html+='<button class="deleghe-item-remove" onclick="App.removeContatto('+idx+','+ci+')" title="Rimuovi">\u00d7</button>';
+      if(!locked){html+='<button class="deleghe-item-remove" onclick="App.removeContatto('+idx+','+ci+')" title="Rimuovi">\u00d7</button>';}
       html+='</div>';
     }
   }else{
     html+='<div class="deleghe-empty">Nessun contatto aggiunto</div>';
   }
-  html+='<div class="contatto-add">';
-  html+='<input type="text" id="contattoNome" placeholder="Nome (es. Mamma)..." onkeydown="if(event.key===\'Enter\')App.addContatto('+idx+')"/>';
-  html+='<input type="tel" id="contattoTelefono" placeholder="Numero..." onkeydown="if(event.key===\'Enter\')App.addContatto('+idx+')"/>';
-  html+='<button onclick="App.addContatto('+idx+')">Aggiungi</button>';
-  html+='</div></div>';
+  if(!locked){html+='<div class="contatto-add">';html+='<input type="text" id="contattoNome" placeholder="Nome (es. Mamma)..." onkeydown="if(event.key===\'Enter\')App.addContatto('+idx+')"/>';html+='<input type="tel" id="contattoTelefono" placeholder="Numero..." onkeydown="if(event.key===\'Enter\')App.addContatto('+idx+')"/>';html+='<button onclick="App.addContatto('+idx+')">Aggiungi</button>';html+='</div>';}
+  html+='</div>';
 
   // Note per bambino
   var childNote=childNotes[idx]||'';
-  var childNoteDisabled=!currentUser;
-  var childNotePlaceholder=currentUser?'Scrivi una nota per questo bambino...':'Effettua il login per salvare le note';
+  var childNoteDisabled=!currentUser||locked;
+  var childNotePlaceholder=!currentUser?'Effettua il login per salvare le note':locked?'Sblocca la classe per scrivere note':'Scrivi una nota per questo bambino...';
   html+='<div class="deleghe-box" style="background:#fff8e1">';
   html+='<div class="deleghe-box-title" style="color:#f57f17"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f57f17" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Note</div>';
   if(!currentUser){html+='<div style="font-size:10px;color:#dc3545;font-weight:600;margin-bottom:6px;text-align:center">⚠ Le note si salvano solo col login</div>';}
   html+='<textarea id="childNoteInput" placeholder="'+childNotePlaceholder+'" style="width:100%;min-height:48px;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;outline:none;color:#333;background:'+(childNoteDisabled?'#f5f5f5':'white')+'" oninput="App.updateChildNote('+idx+',this.value)" '+(childNoteDisabled?'disabled':'')+'>'+esc(childNote)+'</textarea>';
   html+='</div>';
 
-  html+='<button class="btn btn-danger" style="width:100%;margin-top:8px;justify-content:center" onclick="App.removeChild('+idx+')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Rimuovi Bambino</button>';
+  if(!locked){html+='<button class="btn btn-danger" style="width:100%;margin-top:8px;justify-content:center" onclick="App.removeChild('+idx+')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Rimuovi Bambino</button>';}
   html+='<button class="child-detail-close" onclick="App.closeChildDetail()">Chiudi</button>';
   html+='</div></div>';
   return html;
@@ -1018,9 +1056,9 @@ window.App={
     var name=prompt('Nome della nuova classe\n(es. Farfalle, Cuori, Stelle):');
     if(!name||!name.trim()) return;
     name=name.trim().toUpperCase();
-    var pin=prompt('Crea un PIN per questa classe (4-6 cifre):\nIl PIN serve per proteggere l\'eliminazione della classe.');
+    var pin=prompt('Crea un PIN per questa classe (4-6 cifre):\nIl PIN sarà richiesto per accedere a questa classe.');
     if(pin===null) return;
-    if(pin.trim()&&!/^\d{4,6}$/.test(pin.trim())){alert('Il PIN deve essere di 4-6 cifre.');return;}
+    if(!pin.trim()||!/^\d{4,6}$/.test(pin.trim())){alert('Il PIN è obbligatorio e deve essere di 4-6 cifre.');return;}
     saveCurrentClassData();
     var newId=generateClassId();
     classes[newId]={
@@ -1033,8 +1071,10 @@ window.App={
       dateData:{},holidays:{},dayNotes:{},
       teacher1:'',teacher2:'',sortMode:'default'
     };
+    unlockedClasses[newId]=true;
     currentClassId=newId;
     loadClassData(newId);
+    updateClassLockState();
     saveState();render();
   },
   deleteClass:function(classId){
@@ -1058,27 +1098,35 @@ window.App={
   },
   switchClass:function(classId){
     if(classId===currentClassId) return;
+    if(!tryUnlockClass(classId)) return;
+    // Ri-blocca la classe corrente quando si cambia: ogni accesso richiede il PIN
+    if(currentClassId&&classes[currentClassId]&&classes[currentClassId].pin){
+      delete unlockedClasses[currentClassId];
+    }
     saveCurrentClassData();
     loadClassData(classId);
     search='';selectedChild=-1;showDietModal=-1;
+    updateClassLockState();
     saveState();render();
+  },
+  unlockClass:function(){
+    if(!currentClassId||!classes[currentClassId]) return;
+    if(tryUnlockClass(currentClassId)){updateClassLockState();render();}
   },
   managePin:function(){
     if(!currentClassId||!classes[currentClassId]) return;
+    if(classLocked){alert('Sblocca prima la classe per gestire il PIN.');return;}
     var cName=classes[currentClassId].name||'Classe';
     var currentPin=classes[currentClassId].pin||'';
-    var msg=currentPin?'La classe "'+cName+'" ha un PIN impostato.\n\nInserisci il nuovo PIN per cambiarlo (4-6 cifre),\no lascia vuoto per rimuoverlo:':'La classe "'+cName+'" non ha un PIN.\n\nInserisci un PIN (4-6 cifre) per proteggere l\'eliminazione:';
+    var msg=currentPin?'La classe "'+cName+'" ha un PIN impostato.\n\nInserisci il nuovo PIN per cambiarlo (4-6 cifre),\no lascia vuoto per rimuoverlo:':'La classe "'+cName+'" non ha un PIN.\n\nInserisci un PIN (4-6 cifre) per proteggere l\'accesso alla classe:';
     var newPin=prompt(msg);
     if(newPin===null) return;
     if(newPin.trim()&&!/^\d{4,6}$/.test(newPin.trim())){alert('Il PIN deve essere di 4-6 cifre.');return;}
-    if(currentPin&&newPin.trim()!==''){
-      var verify=prompt('Inserisci il PIN attuale per confermare:');
-      if(verify===null) return;
-      if(verify!==currentPin){alert('PIN attuale errato.');return;}
-    }
     classes[currentClassId].pin=newPin.trim();
+    if(!newPin.trim()){unlockedClasses[currentClassId]=true;}
+    updateClassLockState();
     saveState();render();
-    alert(newPin.trim()?'PIN impostato con successo!':'PIN rimosso.');
+    alert(newPin.trim()?'PIN impostato con successo! La classe ora richiede il PIN per l\'accesso.':'PIN rimosso. La classe ora e accessibile liberamente.');
   },
   addChild:function(){
     var name=prompt('Nome del nuovo bambino\n(es. Rossi Luca):');
