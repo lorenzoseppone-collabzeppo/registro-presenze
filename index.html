@@ -860,7 +860,18 @@ function doSaveToFirestore(){
   for(var cid in classes){if(classes.hasOwnProperty(cid)){console.log('[SAVE] Class: '+cid+' = '+(classes[cid].name||'?')+' (pin='+(classes[cid].pin?'SET':'none')+', children='+(classes[cid].children?classes[cid].children.length:0)+')');}}
   db.collection('users').doc(currentUser.uid).set(data)
     .then(function(){
-      console.log('[SAVE] Firestore save SUCCESS');
+      console.log('[SAVE] Firestore save SUCCESS - '+classCount+' classes saved');
+      // VERIFICATION: read back from server to confirm save
+      db.collection('users').doc(currentUser.uid).get({source:'server'}).then(function(verifyDoc){
+        if(verifyDoc.exists){
+          var vd=verifyDoc.data();
+          var vCount=vd.classes?Object.keys(vd.classes).length:0;
+          console.log('[VERIFY] Server has '+vCount+' classes after save (expected '+classCount+')');
+          if(vCount!==classCount){
+            console.error('[VERIFY] MISMATCH! Server has '+vCount+' classes but we saved '+classCount);
+          }
+        }
+      }).catch(function(){});
       syncStatus='synced';renderSyncBar();savePinsToLocalStorage();
       setTimeout(function(){if(syncStatus==='synced'){syncStatus='idle';renderSyncBar();}},3000);
     })
@@ -913,28 +924,39 @@ function loadFromFirestore(uid){
   resetAllData();
   syncStatus='saving';renderSyncBar();
   
-  // STEP 2: Try to get data - prefer server data but fallback gracefully
-  db.collection('users').doc(uid).get()
+  // STEP 2: Always fetch from SERVER first to get the freshest data
+  // This is critical for multi-device sync - cache can be stale
+  db.collection('users').doc(uid).get({source:'server'})
     .then(function(doc){
+      console.log('[LOAD] Got data from SERVER, doc exists: '+doc.exists);
       handleFirestoreData(doc, uid, localData);
     })
-    .catch(function(err){
-      console.error('Firestore fetch failed:', err);
-      // Fallback: use localStorage data
-      if(localData){
-        classes=localData.classes;
-        currentClassId=localData.currentClassId||'';
-        if(localData.schoolName) schoolName=localData.schoolName;
-        if(localData.currentDate){try{currentDate=new Date(localData.currentDate+'T12:00:00');}catch(e3){}}
-        restorePinsFromLocalStorage();
-        if(currentClassId&&classes[currentClassId]){loadClassData(currentClassId);}
-        ensureDefaultClass();
-        restorePinsFromLocalStorage();
-      }else{
-        ensureDefaultClass();
-      }
-      firestoreLoadDone=true;firestoreLoaded=true;syncStatus='error';
-      updateClassLockState();render();
+    .catch(function(serverErr){
+      // If server fetch fails (offline, etc.), try cache as fallback
+      console.warn('[LOAD] Server fetch failed, trying cache:', serverErr.message||serverErr);
+      db.collection('users').doc(uid).get({source:'cache'})
+        .then(function(doc){
+          console.log('[LOAD] Got data from CACHE as fallback, doc exists: '+doc.exists);
+          handleFirestoreData(doc, uid, localData);
+        })
+        .catch(function(cacheErr){
+          console.error('[LOAD] Both server and cache fetch failed:', cacheErr);
+          // Last resort: use localStorage data
+          if(localData){
+            classes=localData.classes;
+            currentClassId=localData.currentClassId||'';
+            if(localData.schoolName) schoolName=localData.schoolName;
+            if(localData.currentDate){try{currentDate=new Date(localData.currentDate+'T12:00:00');}catch(e3){}}
+            restorePinsFromLocalStorage();
+            if(currentClassId&&classes[currentClassId]){loadClassData(currentClassId);}
+            ensureDefaultClass();
+            restorePinsFromLocalStorage();
+          }else{
+            ensureDefaultClass();
+          }
+          firestoreLoadDone=true;firestoreLoaded=true;syncStatus='error';
+          updateClassLockState();render();
+        });
     });
 }
 
@@ -1046,8 +1068,8 @@ function renderSyncBar(){
   if(!currentUser){bar.style.display='none';return;}
   bar.style.display='flex';bar.className='sync-bar';
   if(syncStatus==='saving'){bar.classList.add('saving');bar.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4m-7.07-3.93l2.83-2.83m8.48-8.48l2.83-2.83M2 12h4m12 0h4m-3.93 7.07l-2.83-2.83M7.76 7.76L4.93 4.93"/></svg> Salvataggio in corso...';}
-  else if(syncStatus==='synced'){bar.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg> Dati sincronizzati';}
-  else if(syncStatus==='error'){bar.classList.add('error');bar.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Errore di sincronizzazione';}
+  else if(syncStatus==='synced'){bar.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg> Dati sincronizzati <span style="margin-left:8px;color:#0c5460;cursor:pointer;text-decoration:underline;font-size:10px" onclick="App.forceSync()">Forza sync</span>';}
+  else if(syncStatus==='error'){bar.classList.add('error');bar.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Errore di sincronizzazione <span style="margin-left:8px;color:#721c24;cursor:pointer;text-decoration:underline;font-size:10px;font-weight:700" onclick="App.forceSync()">Riprova</span>';}
   else{bar.style.display='none';}
 }
 
@@ -1156,7 +1178,7 @@ function render(){
   var displayClassName=(currentClassId&&classes[currentClassId])?classes[currentClassId].name:className;
   if(editingClass&&!isCoordinatrice()){html+='<input class="class-name-input" id="classInput" value="'+esc(displayClassName.toUpperCase())+'" onblur="App.finishEditClass()" onkeydown="if(event.key===\'Enter\')App.finishEditClass()"/>';}
   else{html+='<div class="class-name"'+(isCoordinatrice()?' style="cursor:default"':' onclick="App.startEditClass()" title="Clicca per modificare"')+'>'+esc(displayClassName.toUpperCase())+'</div>';}
-  html+='<div class="class-sub">REGISTRO DI CLASSE</div>';
+  html+='<div class="class-sub">REGISTRO DI CLASSE'+(isCoordinatrice()&&regularClassCount()>0?' · '+regularClassCount()+' classi':'')+'</div>';
   html+='<div class="header-teachers">';
   if(isCoordinatrice()){
     // COORDINATRICE: un solo campo "Coordinatrice" + campo PIN
@@ -1647,6 +1669,17 @@ function renderChildDetail(idx){
 
 window.App={
   login:handleLogin,
+  forceSync:function(){
+    if(!currentUser||!db){alert('Nessuna connessione al cloud.');return;}
+    saveCurrentClassData();
+    // Save current data to Firestore immediately, then reload from server
+    saveToFirestoreNow();
+    // Also reload from server after a short delay
+    setTimeout(function(){
+      firestoreLoadDone=false;
+      loadFromFirestore(currentUser.uid);
+    },2000);
+  },
   startEditClass:function(){editingClass=true;render();},
   finishEditClass:function(){var ci=document.getElementById('classInput');if(ci&&ci.value.trim()){var newName=ci.value.trim().toUpperCase();className=newName;if(currentClassId&&classes[currentClassId])classes[currentClassId].name=newName;}editingClass=false;saveState();render();},
   startEditSchool:function(){editingSchool=true;render();},
