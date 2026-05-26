@@ -199,6 +199,13 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .contatto-call-btn{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:8px;background:#007bff;color:white;font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;transition:all 0.15s;cursor:pointer}
 .contatto-call-btn:hover{background:#0056b3}
 .contatto-call-btn:active{transform:scale(0.97)}
+.contatto-email-btn{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:8px;background:#9c27b0;color:white;font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;transition:all 0.15s;cursor:pointer}
+.contatto-email-btn:hover{background:#7b1fa2}
+.contatto-email-btn:active{transform:scale(0.97)}
+.contatto-item-info{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.contatto-item-name-row{display:flex;align-items:center;gap:6px;width:100%}
+.contatto-item-name-row .deleghe-item-name{flex-shrink:0}
+.contatto-item-contacts{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .contatto-add{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
 .contatto-add input{flex:1;min-width:80px;padding:8px 12px;border:2px solid rgba(255,255,255,0.2);border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:rgba(255,255,255,0.1);color:white}
 .contatto-add input::placeholder{color:rgba(255,255,255,0.4)}
@@ -1609,16 +1616,21 @@ function renderChildDetail(idx){
   html+='<div class="deleghe-box-title" style="color:#64b5f6"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64b5f6" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg> Contatti</div>';
   if(contatti.length>0){
     for(var ci=0;ci<contatti.length;ci++){
-      html+='<div class="deleghe-item">';
+      html+='<div class="deleghe-item" style="flex-wrap:wrap">';
+      html+='<div class="contatto-item-name-row">';
       html+='<span class="deleghe-item-name">'+esc(contatti[ci].nome||'')+'</span>';
-      html+='<a class="contatto-call-btn" href="tel:'+esc(contatti[ci].telefono||'')+'" title="Chiama '+esc(contatti[ci].nome||'')+'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg> '+esc(contatti[ci].telefono||'')+'</a>';
       if(!locked){html+='<button class="deleghe-item-remove" onclick="App.removeContatto('+idx+','+ci+')" title="Rimuovi">\u00d7</button>';}
+      html+='</div>';
+      html+='<div class="contatto-item-contacts">';
+      if(contatti[ci].telefono){html+='<a class="contatto-call-btn" href="tel:'+esc(contatti[ci].telefono)+'" title="Chiama '+esc(contatti[ci].nome||'')+'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg> '+esc(contatti[ci].telefono)+'</a>';}
+      if(contatti[ci].email){html+='<a class="contatto-email-btn" href="mailto:'+esc(contatti[ci].email)+'" title="Scrivi a '+esc(contatti[ci].nome||'')+'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> '+esc(contatti[ci].email)+'</a>';}
+      html+='</div>';
       html+='</div>';
     }
   }else{
     html+='<div class="deleghe-empty">Nessun contatto aggiunto</div>';
   }
-  if(!locked){html+='<div class="contatto-add">';html+='<input type="text" id="contattoNome" placeholder="Nome (es. Mamma)..." onkeydown="if(event.key===\'Enter\')App.addContatto('+idx+')"/>';html+='<input type="tel" id="contattoTelefono" placeholder="Numero..." onkeydown="if(event.key===\'Enter\')App.addContatto('+idx+')"/>';html+='<button onclick="App.addContatto('+idx+')">Aggiungi</button>';html+='</div>';}
+  if(!locked){html+='<div class="contatto-add">';html+='<input type="text" id="contattoNome" placeholder="Nome (es. Mamma)..." onkeydown="if(event.key===\'Enter\')App.addContatto('+idx+')"/>';html+='<input type="tel" id="contattoTelefono" placeholder="Numero..." onkeydown="if(event.key===\'Enter\')App.addContatto('+idx+')"/>';html+='<input type="email" id="contattoEmail" placeholder="Email..." onkeydown="if(event.key===\'Enter\')App.addContatto('+idx+')"/>';html+='<button onclick="App.addContatto('+idx+')">Aggiungi</button>';html+='</div>';}
   html+='</div>';
 
   // Note per bambino
@@ -1940,7 +1952,7 @@ window.App={
   toggleGender:function(i){var g=getGender(i);childGender[i]=(g==='m'?'f':'m');saveState();render();},
   addDelega:function(i){var inp=document.getElementById('delegaInput');if(inp&&inp.value.trim()){if(!childDeleghe[i])childDeleghe[i]=[];childDeleghe[i].push(inp.value.trim());saveState();render();}},
   removeDelega:function(i,di){if(childDeleghe[i]){childDeleghe[i].splice(di,1);if(childDeleghe[i].length===0)delete childDeleghe[i];saveState();render();}},
-  addContatto:function(i){var nomeInp=document.getElementById('contattoNome');var telInp=document.getElementById('contattoTelefono');if(nomeInp&&telInp&&nomeInp.value.trim()&&telInp.value.trim()){if(!childContatti[i])childContatti[i]=[];childContatti[i].push({nome:nomeInp.value.trim(),telefono:telInp.value.trim()});saveState();render();}},
+  addContatto:function(i){var nomeInp=document.getElementById('contattoNome');var telInp=document.getElementById('contattoTelefono');var emailInp=document.getElementById('contattoEmail');if(nomeInp&&nomeInp.value.trim()){var hasTel=telInp&&telInp.value.trim();var hasEmail=emailInp&&emailInp.value.trim();if(hasTel||hasEmail){if(!childContatti[i])childContatti[i]=[];var obj={nome:nomeInp.value.trim()};if(hasTel) obj.telefono=telInp.value.trim();if(hasEmail) obj.email=emailInp.value.trim();childContatti[i].push(obj);saveState();render();}}else{alert('Inserisci almeno il nome e un contatto (telefono o email)');}},
   removeContatto:function(i,ci){if(childContatti[i]){childContatti[i].splice(ci,1);if(childContatti[i].length===0)delete childContatti[i];saveState();render();}},
   updateChildNote:function(i,val){if(val.trim()){childNotes[i]=val.trim();}else{delete childNotes[i];}saveState();},
   setSearch:function(v){search=v;render();},
@@ -2114,7 +2126,7 @@ window.App={
           var delegheList=childDeleghe[pi]||[];
           var delegheStr=delegheList.length>0?delegheList.join(', '):'-';
           var contattiList=childContatti[pi]||[];
-          var contattiStr=contattiList.length>0?contattiList.map(function(c){return c.nome+': '+c.telefono;}).join(', '):'-';
+          var contattiStr=contattiList.length>0?contattiList.map(function(c){var s=c.nome+': ';if(c.telefono) s+=c.telefono;if(c.telefono&&c.email) s+=' / ';if(c.email) s+=c.email;return s;}).join(', '):'-';
           var ageStr=childAge[pi]||'-';
           var noteStr=childNotes[pi]||'-';
           tableBody.push([k2+1,children[pi],ageStr,String(mPresenze[pi]),String(mPre[pi]),String(mPost[pi]),dietInfo||'-',delegheStr,contattiStr,noteStr]);
@@ -2188,7 +2200,7 @@ window.App={
         var delegheList=childDeleghe[pi]||[];
         var delegheStr=delegheList.length>0?delegheList.join(', '):'-';
         var contattiList=childContatti[pi]||[];
-        var contattiStr=contattiList.length>0?contattiList.map(function(c){return c.nome+': '+c.telefono;}).join(', '):'-';
+        var contattiStr=contattiList.length>0?contattiList.map(function(c){var s=c.nome+': ';if(c.telefono) s+=c.telefono;if(c.telefono&&c.email) s+=' / ';if(c.email) s+=c.email;return s;}).join(', '):'-';
         var ageStr=childAge[pi]||'-';
         var noteStr=childNotes[pi]||'-';
         tableBody.push([pi+1,children[pi],ageStr,String(mPresenze[pi]),String(mPre[pi]),String(mPost[pi]),dietInfo||'-',delegheStr,contattiStr,noteStr]);
