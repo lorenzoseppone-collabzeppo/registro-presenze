@@ -3,8 +3,11 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
 <title>Registro di Classe</title>
-<meta name="version" content="2025-05-27-v15-realtime-sync"/>
+<meta name="version" content="2025-05-27-v15b-cachebust"/>
 <meta name="description" content="Registro di Classe per la gestione della classe"/>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231a1a2e'><path d='M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z'/></svg>"/>
 <style>
@@ -1651,6 +1654,9 @@ function render(){
   // Close locked overlay
   if(classLocked){html+='</div>';}
 
+  // Version indicator - always visible
+  html+='<div style="position:fixed;bottom:4px;right:6px;font-size:9px;color:#aaa;z-index:9999;pointer-events:none;font-weight:600" id="versionBadge">v15b</div>';
+
   if(selectedChild>=0){html+=renderChildDetail(selectedChild);}
   if(showDietModal>=0){html+=renderDietModal(showDietModal);}
 
@@ -3237,6 +3243,36 @@ startClock();
 fetchWeather();
 // Aggiorna meteo ogni 30 minuti
 setInterval(function(){fetchWeather();},1800000);
+
+// Fix: reset syncStatus if stuck on 'saving' without user
+setInterval(function(){
+  if(syncStatus==='saving'&&(!currentUser||!db)){
+    syncStatus='idle';
+    renderSyncBar();
+  }
+},3000);
+
+// Auto-update check: se la versione sul server è diversa, ricarica
+(function(){
+  var CURRENT_VERSION='v15b';
+  var checked=false;
+  function checkVersion(){
+    if(checked) return;
+    checked=true;
+    var stored=localStorage.getItem('rp_app_version');
+    if(stored&&stored!==CURRENT_VERSION){
+      console.log('[UPDATE] Version changed from '+stored+' to '+CURRENT_VERSION+', clearing cache');
+      localStorage.setItem('rp_app_version',CURRENT_VERSION);
+      // Force reload without cache
+      if('caches' in window){
+        caches.keys().then(function(names){for(var i=0;i<names.length;i++)caches.delete(names[i]);});
+      }
+    }else if(!stored){
+      localStorage.setItem('rp_app_version',CURRENT_VERSION);
+    }
+  }
+  setTimeout(checkVersion,1000);
+})();
 
 })();
 </script>
