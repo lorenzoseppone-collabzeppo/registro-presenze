@@ -4,7 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <title>Registro di Classe</title>
-<meta name="version" content="2025-05-27-v11-users-fix"/>
+<meta name="version" content="2025-05-27-v12-server-read"/>
 <meta name="description" content="Registro di Classe per la gestione della classe"/>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231a1a2e'><path d='M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z'/></svg>"/>
 <style>
@@ -906,10 +906,10 @@ function savePinsToLocalStorage(){
     localStorage.setItem('rp_pins',JSON.stringify(pins));
   }catch(e){console.error('savePins error:',e);}
 }
-function loadFromFirestore(uid){
+function loadFromFirestore(uid, forceServer){
   if(!db) return;
-  // Prevent double-loading: if already loaded for this user, skip
-  if(firestoreLoadDone&&currentUser&&currentUser.uid===uid) return;
+  // Prevent double-loading: if already loaded for this user, skip (unless forceServer)
+  if(!forceServer&&firestoreLoadDone&&currentUser&&currentUser.uid===uid) return;
   
   // STEP 1: Load from localStorage FIRST as immediate backup
   var localData=null;
@@ -922,10 +922,15 @@ function loadFromFirestore(uid){
   syncStatus='saving';renderSyncBar();
   
   // STEP 2: Load from Firestore - users collection (allowed by Firebase rules)
-  db.collection('users').doc(uid).get()
+  // Always try SERVER first to get latest data, fall back to cache if offline
+  var getOptions = forceServer ? {source:'server'} : {};
+  db.collection('users').doc(uid).get(getOptions)
     .then(function(doc){
-      console.log('[LOAD] Firestore get() success, doc exists: '+doc.exists);
+      console.log('[LOAD] Firestore get() success (source='+(doc.metadata&&doc.metadata.fromCache?'cache':'server')+'), doc exists: '+doc.exists);
       if(doc.exists&&doc.data()&&doc.data().classes){
+        // Log what we got from Firestore
+        var fsClasses = doc.data().classes;
+        for(var fc in fsClasses){if(fsClasses.hasOwnProperty(fc)){console.log('[LOAD] FS class: '+fc+' = '+(fsClasses[fc].name||'?'));}}
         handleFirestoreData(doc, uid, localData);
       }else{
         // No data in users collection - try registro_presenze as fallback
@@ -950,17 +955,38 @@ function loadFromFirestore(uid){
     })
     .catch(function(err){
       console.error('[LOAD] Firestore get() failed:', err.code, err.message);
-      // Show the real error in sync bar
-      var errMsg=err.code||err.message||'Errore sconosciuto';
-      if(err.code==='permission-denied'){errMsg='Permesso negato - controlla regole Firebase';}
-      else if(err.code==='unavailable'){errMsg='Server non disponibile';}
+      // If server read failed, try cache as fallback
+      if(forceServer || err.code==='unavailable' || err.code==='failed-precondition'){
+        console.log('[LOAD] Server read failed, trying cache...');
+        db.collection('users').doc(uid).get()
+          .then(function(doc){
+            if(doc.exists&&doc.data()&&doc.data().classes){
+              handleFirestoreData(doc, uid, localData);
+            }else{
+              applyLocalOrDefaults(localData);
+              saveToFirestoreNow();
+            }
+          })
+          .catch(function(err2){
+            console.error('[LOAD] Cache read also failed:', err2.code);
+            applyLocalOrDefaults(localData);
+            syncStatus='error';
+            var bar=document.getElementById('sync-bar');
+            if(bar){
+              bar.style.display='flex';bar.className='sync-bar error';
+              bar.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Errore sync <span style="margin-left:4px;color:#721c24;cursor:pointer;text-decoration:underline;font-size:10px;font-weight:700" onclick="App.forceSync()">Riprova</span>';
+            }
+            firestoreLoadDone=true;firestoreLoaded=true;
+            updateClassLockState();render();
+          });
+        return;
+      }
       applyLocalOrDefaults(localData);
       syncStatus='error';
-      // Show error with details
       var bar=document.getElementById('sync-bar');
       if(bar){
         bar.style.display='flex';bar.className='sync-bar error';
-        bar.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> '+esc(errMsg)+' <span style="margin-left:4px;color:#721c24;cursor:pointer;text-decoration:underline;font-size:10px;font-weight:700" onclick="App.forceSync()">Riprova</span> <span style="margin-left:4px;color:#721c24;cursor:pointer;text-decoration:underline;font-size:10px;font-weight:700" onclick="App.runDiag()">Diagnostica</span>';
+        bar.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> '+esc(err.code||err.message||'Errore')+' <span style="margin-left:4px;color:#721c24;cursor:pointer;text-decoration:underline;font-size:10px;font-weight:700" onclick="App.forceSync()">Riprova</span>';
       }
       firestoreLoadDone=true;firestoreLoaded=true;
       updateClassLockState();render();
@@ -1120,7 +1146,7 @@ function initFirebase(){
           resetAllData();
           firestoreLoadDone=false;
         }
-        loadFromFirestore(u.uid);
+        loadFromFirestore(u.uid, true);
       }else{
         firestoreLoadDone=false;
         // NON pulire localStorage per uid - serve come backup quando si rientra!
@@ -1255,7 +1281,7 @@ function render(){
     html+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 8px;flex-wrap:wrap">';
     html+='<button onclick="App.runDiag()" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;border:1.5px solid #dc3545;background:rgba(220,53,69,0.08);color:#dc3545;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Diagnostica</button>';
     html+='<button onclick="App.fixRules()" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;border:1.5px solid #28a745;background:rgba(40,167,69,0.08);color:#28a745;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg> Ripara Firebase</button>';
-    html+='<span style="font-size:9px;color:#aaa;margin-left:auto">v11-fix</span>';
+    html+='<span style="font-size:9px;color:#aaa;margin-left:auto">v12</span>';
     html+='</div>';
   }
 
@@ -1832,13 +1858,15 @@ window.App={
   forceSync:function(){
     if(!currentUser||!db){alert('Nessuna connessione al cloud.');return;}
     saveCurrentClassData();
-    // Save current data to Firestore immediately, then reload from server
+    // Save current data to Firestore immediately, then reload from SERVER (not cache)
     firestoreLoadDone=false;
     syncStatus='saving';renderSyncBar();
+    console.log('[FORCESYNC] Saving '+Object.keys(classes).length+' classes to Firestore...');
     db.collection('users').doc(currentUser.uid).set({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()})
       .then(function(){
-        console.log('[FORCESYNC] Save OK, reloading from server...');
-        loadFromFirestore(currentUser.uid);
+        console.log('[FORCESYNC] Save OK, reloading from SERVER...');
+        // Force read from server (not cache) to get latest data
+        loadFromFirestore(currentUser.uid, true);
       })
       .catch(function(err){
         console.error('[FORCESYNC] Save failed:',err.code,err.message);
