@@ -4,7 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <title>Registro di Classe</title>
-<meta name="version" content="2025-05-27-v14-upload-download"/>
+<meta name="version" content="2025-05-27-v15-realtime-sync"/>
 <meta name="description" content="Registro di Classe per la gestione della classe"/>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231a1a2e'><path d='M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z'/></svg>"/>
 <style>
@@ -364,6 +364,8 @@ var classLocked = false;
 var COORDINATRICE_ID = '__coordinatrice__';
 var weatherData = null;
 var clockTimer = null;
+var _lastSaveId = null;
+var _snapshotListener = null;
 
 
 function regularClassCount(){var c=0;for(var k in classes){if(classes.hasOwnProperty(k)&&k!==COORDINATRICE_ID)c++;}return c;}
@@ -856,7 +858,8 @@ function doSaveToFirestore(){
   saveCurrentClassData();
   // Always save to localStorage first (synchronous, immediate backup)
   try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
-  var data={classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+  _lastSaveId=Math.random().toString(36);
+  var data={classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:new Date().toISOString(),_saveId:_lastSaveId};
   var classCount=Object.keys(classes).length;
   console.log('[SAVE] Saving to Firestore: '+classCount+' classes');
   for(var cid in classes){if(classes.hasOwnProperty(cid)){console.log('[SAVE] Class: '+(classes[cid].name||'?')+' - '+(classes[cid].children?classes[cid].children.length:0)+' bambini');}}
@@ -922,10 +925,10 @@ function savePinsToLocalStorage(){
     localStorage.setItem('rp_pins',JSON.stringify(pins));
   }catch(e){console.error('savePins error:',e);}
 }
-function loadFromFirestore(uid, forceServer){
+function loadFromFirestore(uid, forceReload){
   if(!db) return;
-  // Prevent double-loading: if already loaded for this user, skip (unless forceServer)
-  if(!forceServer&&firestoreLoadDone&&currentUser&&currentUser.uid===uid) return;
+  // Prevent double-loading: if already loaded for this user, skip (unless forceReload)
+  if(!forceReload&&firestoreLoadDone&&currentUser&&currentUser.uid===uid) return;
   
   // STEP 1: Load from localStorage FIRST as immediate backup
   var localData=null;
@@ -939,8 +942,7 @@ function loadFromFirestore(uid, forceServer){
   
   // STEP 2: Load from Firestore - users collection (allowed by Firebase rules)
   // Always try SERVER first to get latest data, fall back to cache if offline
-  var getOptions = forceServer ? {source:'server'} : {};
-  db.collection('users').doc(uid).get(getOptions)
+  db.collection('users').doc(uid).get()
     .then(function(doc){
       console.log('[LOAD] Firestore get() success (source='+(doc.metadata&&doc.metadata.fromCache?'cache':'server')+'), doc exists: '+doc.exists);
       if(doc.exists&&doc.data()&&doc.data().classes){
@@ -971,38 +973,15 @@ function loadFromFirestore(uid, forceServer){
     })
     .catch(function(err){
       console.error('[LOAD] Firestore get() failed:', err.code, err.message);
-      // If server read failed, try cache as fallback
-      if(forceServer || err.code==='unavailable' || err.code==='failed-precondition'){
-        console.log('[LOAD] Server read failed, trying cache...');
-        db.collection('users').doc(uid).get()
-          .then(function(doc){
-            if(doc.exists&&doc.data()&&doc.data().classes){
-              handleFirestoreData(doc, uid, localData);
-            }else{
-              applyLocalOrDefaults(localData);
-              saveToFirestoreNow();
-            }
-          })
-          .catch(function(err2){
-            console.error('[LOAD] Cache read also failed:', err2.code);
-            applyLocalOrDefaults(localData);
-            syncStatus='error';
-            var bar=document.getElementById('sync-bar');
-            if(bar){
-              bar.style.display='flex';bar.className='sync-bar error';
-              bar.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Errore sync <span style="margin-left:4px;color:#721c24;cursor:pointer;text-decoration:underline;font-size:10px;font-weight:700" onclick="App.forceSync()">Riprova</span>';
-            }
-            firestoreLoadDone=true;firestoreLoaded=true;
-            updateClassLockState();render();
-          });
-        return;
-      }
+      // If read failed, use localStorage as fallback
       applyLocalOrDefaults(localData);
       syncStatus='error';
       var bar=document.getElementById('sync-bar');
       if(bar){
         bar.style.display='flex';bar.className='sync-bar error';
-        bar.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> '+esc(err.code||err.message||'Errore')+' <span style="margin-left:4px;color:#721c24;cursor:pointer;text-decoration:underline;font-size:10px;font-weight:700" onclick="App.forceSync()">Riprova</span>';
+        var errMsg=err.code||err.message||'Errore';
+        if(errMsg==='unavailable') errMsg='Server non disponibile';
+        bar.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> '+esc(errMsg)+' <span style="margin-left:4px;color:#721c24;cursor:pointer;text-decoration:underline;font-size:10px;font-weight:700" onclick="App.forceSync()">Riprova</span>';
       }
       firestoreLoadDone=true;firestoreLoaded=true;
       updateClassLockState();render();
@@ -1144,6 +1123,106 @@ function renderSyncBar(){
   else{bar.style.display='none';}
 }
 
+// ---- REAL-TIME SYNC with onSnapshot ----
+function startSnapshotListener(uid){
+  if(!db||!uid) return;
+  stopSnapshotListener(); // Clean up any existing listener
+  console.log('[SNAPSHOT] Starting real-time listener for uid: '+uid.substring(0,8)+'...');
+  
+  _snapshotListener = db.collection('users').doc(uid).onSnapshot(function(doc){
+    // Ignore if initial load not done yet
+    if(!firestoreLoadDone) return;
+    
+    // Ignore our own writes
+    if(doc.metadata&&doc.metadata.hasPendingWrites){
+      console.log('[SNAPSHOT] Ignoring own pending write');
+      return;
+    }
+    
+    var data = doc.exists ? doc.data() : null;
+    if(!data||!data.classes) return;
+    
+    // Check if this is our own write (same _saveId)
+    if(data._saveId && data._saveId === _lastSaveId){
+      console.log('[SNAPSHOT] Ignoring own confirmed write');
+      return;
+    }
+    
+    var serverClasses = data.classes;
+    var localClasses = JSON.parse(JSON.stringify(classes));
+    var serverCount = Object.keys(serverClasses).length;
+    var localCount = Object.keys(localClasses).length;
+    console.log('[SNAPSHOT] Remote change! Server: '+serverCount+' classes, Local: '+localCount+' classes');
+    
+    // Merge: start with server data, add local-only classes
+    var merged = JSON.parse(JSON.stringify(serverClasses));
+    var localOnlyCount = 0;
+    for(var mk in localClasses){
+      if(localClasses.hasOwnProperty(mk)){
+        if(!merged.hasOwnProperty(mk)){
+          merged[mk] = localClasses[mk];
+          localOnlyCount++;
+          console.log('[SNAPSHOT] Keeping local-only class: '+(localClasses[mk].name||mk));
+        }else{
+          // For overlapping classes, keep version with more children
+          var lsKids = (localClasses[mk].children||[]).length;
+          var fsKids = (merged[mk].children||[]).length;
+          var lsMsgs = (localClasses[mk].messages||[]).length;
+          var fsMsgs = (merged[mk].messages||[]).length;
+          if(lsKids>fsKids||lsMsgs>fsMsgs){
+            merged[mk] = localClasses[mk];
+            console.log('[SNAPSHOT] Local has more data for '+(localClasses[mk].name||mk));
+          }
+        }
+      }
+    }
+    
+    // Apply merged data
+    classes = merged;
+    if(data.currentClassId && classes[data.currentClassId]) currentClassId = data.currentClassId;
+    if(data.schoolName) schoolName = data.schoolName;
+    restorePinsFromLocalStorage();
+    if(currentClassId && classes[currentClassId]) loadClassData(currentClassId);
+    ensureDefaultClass();
+    restorePinsFromLocalStorage();
+    var key = getCurrentDateKey();
+    var dd = dateData[key];
+    if(dd){presenze=dd.presenze||{};pre=dd.pre||{};post=dd.post||{};}
+    else{presenze={};pre={};post={};}
+    if(currentClassId&&classes[currentClassId]&&!(classes[currentClassId].pin&&classes[currentClassId].pin.length>0)){unlockedClasses[currentClassId]=true;}
+    try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
+    savePinsToLocalStorage();
+    
+    syncStatus='synced';
+    updateClassLockState();
+    render();
+    renderSyncBar();
+    setTimeout(function(){if(syncStatus==='synced'){syncStatus='idle';renderSyncBar();}},3000);
+    
+    // If we had local-only classes, save the merged data to server
+    // (so other devices also get these classes)
+    if(localOnlyCount > 0){
+      console.log('[SNAPSHOT] Saving merged data with '+localOnlyCount+' local-only classes');
+      _lastSaveId = Math.random().toString(36);
+      var saveData = {classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:new Date().toISOString(),_saveId:_lastSaveId};
+      db.collection('users').doc(uid).set(saveData).catch(function(e){
+        console.error('[SNAPSHOT] Save after merge failed:',e);
+      });
+    }
+  }, function(err){
+    console.error('[SNAPSHOT] Error:',err.code,err.message);
+  });
+}
+
+function stopSnapshotListener(){
+  if(_snapshotListener){
+    _snapshotListener();
+    _snapshotListener = null;
+    console.log('[SNAPSHOT] Listener stopped');
+  }
+}
+// ---- END REAL-TIME SYNC ----
+
 function initFirebase(){
   try{
     if(typeof firebase==='undefined'){console.warn('Firebase SDK not loaded');render();return;}
@@ -1160,8 +1239,10 @@ function initFirebase(){
           resetAllData();
           firestoreLoadDone=false;
         }
-        loadFromFirestore(u.uid, true);
+        loadFromFirestore(u.uid, false);
+        startSnapshotListener(u.uid);
       }else{
+        stopSnapshotListener();
         firestoreLoadDone=false;
         // NON pulire localStorage per uid - serve come backup quando si rientra!
         // Rimuovi solo il vecchio key generico
@@ -1186,7 +1267,7 @@ function handleLogin(){
       // Prova a salvare su Firestore (fire and forget - non bloccare il logout)
       try{
         if(db&&uid){
-          db.collection('users').doc(uid).set({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()}).catch(function(err){console.error('[LOGOUT] Firestore save failed:',err);});
+          db.collection('users').doc(uid).set({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:new Date().toISOString()}).catch(function(err){console.error('[LOGOUT] Firestore save failed:',err);});
         }
       }catch(e){console.error('[LOGOUT] Firestore error:',e);}
       // Fai logout SUBITO - non aspettare Firestore
@@ -1753,7 +1834,7 @@ function runFirestoreDiagnostic(){
     {coll:'registro_presenze',doc:uid,label:'registro_presenze/'+uid},
     {coll:'registro_presenze',doc:'rp_data_'+uid,label:'registro_presenze/rp_data_'+uid}
   ];
-  var testData={_diag:true,ts:firebase.firestore.FieldValue.serverTimestamp()};
+  var testData={_diag:true,ts:new Date().toISOString()};
   var idx=0;
   
   function showResults(){
@@ -1879,7 +1960,8 @@ window.App={
     if(!confirm('CARICA DATI SUL SERVER\n\nClassi: '+classCount+'\nBambini totali: '+totalKids+'\n\nI dati di questo telefono sovrascriveranno quelli sul server.\nContinuare?')) return;
     
     var uid=currentUser.uid;
-    var data={classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+    _lastSaveId=Math.random().toString(36);
+    var data={classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:new Date().toISOString(),_saveId:_lastSaveId};
     syncStatus='saving';renderSyncBar();
     console.log('[UPLOAD] Uploading '+Object.keys(classes).length+' classes to server...');
     
@@ -1919,7 +2001,7 @@ window.App={
       syncStatus='error';renderSyncBar();
     },20000);
     
-    db.collection('users').doc(uid).get({source:'server'})
+    db.collection('users').doc(uid).get()
       .then(function(doc){
         clearTimeout(downloadTimer);
         if(!doc.exists||!doc.data()||!doc.data().classes){
@@ -1983,8 +2065,75 @@ window.App={
       });
   },
   forceSync:function(){
-    // Keep for backward compat - now does upload then download
-    App.uploadToServer();
+    if(!currentUser||!db){alert('Nessuna connessione al cloud.');return;}
+    saveCurrentClassData();
+    var uid=currentUser.uid;
+    syncStatus='saving';renderSyncBar();
+    console.log('[FORCESYNC] Starting read-merge-save...');
+    
+    // Step 1: Read from server
+    db.collection('users').doc(uid).get().then(function(doc){
+      var serverClasses={};
+      var serverCurrentClassId='';
+      var serverSchoolName='';
+      if(doc.exists&&doc.data()&&doc.data().classes){
+        serverClasses=doc.data().classes;
+        serverCurrentClassId=doc.data().currentClassId||'';
+        serverSchoolName=doc.data().schoolName||'';
+      }
+      var localClasses=JSON.parse(JSON.stringify(classes));
+      console.log('[FORCESYNC] Server: '+Object.keys(serverClasses).length+' classes, Local: '+Object.keys(localClasses).length+' classes');
+      
+      // Step 2: Merge - start with server, add local-only classes
+      var merged=JSON.parse(JSON.stringify(serverClasses));
+      var addedFromLocal=0;
+      for(var mk in localClasses){
+        if(localClasses.hasOwnProperty(mk)){
+          if(!merged.hasOwnProperty(mk)){
+            merged[mk]=localClasses[mk];
+            addedFromLocal++;
+            console.log('[FORCESYNC] Adding local-only class: '+(localClasses[mk].name||mk));
+          }else{
+            // For overlapping classes, keep version with more children
+            var lsKids=(localClasses[mk].children||[]).length;
+            var fsKids=(merged[mk].children||[]).length;
+            if(lsKids>fsKids){
+              merged[mk]=localClasses[mk];
+              console.log('[FORCESYNC] Local has more data for '+(localClasses[mk].name||mk));
+            }
+          }
+        }
+      }
+      
+      // Step 3: Save merged data
+      _lastSaveId=Math.random().toString(36);
+      var saveData={classes:merged,currentClassId:currentClassId,schoolName:schoolName,updatedAt:new Date().toISOString(),_saveId:_lastSaveId};
+      db.collection('users').doc(uid).set(saveData).then(function(){
+        console.log('[FORCESYNC] Saved merged data ('+Object.keys(merged).length+' classes, '+addedFromLocal+' from local)');
+        classes=merged;
+        if(serverSchoolName) schoolName=serverSchoolName;
+        restorePinsFromLocalStorage();
+        if(currentClassId&&classes[currentClassId]) loadClassData(currentClassId);
+        ensureDefaultClass();
+        restorePinsFromLocalStorage();
+        var key=getCurrentDateKey();var dd=dateData[key];
+        if(dd){presenze=dd.presenze||{};pre=dd.pre||{};post=dd.post||{};}
+        else{presenze={};pre={};post={};}
+        if(currentClassId&&classes[currentClassId]&&!(classes[currentClassId].pin&&classes[currentClassId].pin.length>0)){unlockedClasses[currentClassId]=true;}
+        try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
+        savePinsToLocalStorage();
+        syncStatus='synced';updateClassLockState();render();
+        setTimeout(function(){if(syncStatus==='synced'){syncStatus='idle';renderSyncBar();}},5000);
+      }).catch(function(err){
+        console.error('[FORCESYNC] Save failed:',err.code,err.message);
+        syncStatus='error';renderSyncBar();
+        alert('Errore salvataggio: '+(err.code||err.message||'Errore'));
+      });
+    }).catch(function(err){
+      console.error('[FORCESYNC] Read failed:',err.code,err.message);
+      syncStatus='error';renderSyncBar();
+      alert('Errore lettura: '+(err.code||err.message||'Errore'));
+    });
   },
   runDiag:function(){runFirestoreDiagnostic();},
   fixRules:function(){fixFirebaseRules();},
