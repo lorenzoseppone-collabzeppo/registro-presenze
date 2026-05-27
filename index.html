@@ -4,7 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <title>Registro di Classe</title>
-<meta name="version" content="2025-05-27-v8-sync-fix"/>
+<meta name="version" content="2025-05-27-v9-diag"/>
 <meta name="description" content="Registro di Classe per la gestione della classe"/>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231a1a2e'><path d='M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z'/></svg>"/>
 <style>
@@ -987,7 +987,7 @@ function loadFromFirestore(uid){
       var bar=document.getElementById('sync-bar');
       if(bar){
         bar.style.display='flex';bar.className='sync-bar error';
-        bar.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> '+esc(errMsg)+' <span style="margin-left:6px;color:#721c24;cursor:pointer;text-decoration:underline;font-size:10px;font-weight:700" onclick="App.forceSync()">Riprova</span>';
+        bar.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> '+esc(errMsg)+' <span style="margin-left:4px;color:#721c24;cursor:pointer;text-decoration:underline;font-size:10px;font-weight:700" onclick="App.forceSync()">Riprova</span> <span style="margin-left:4px;color:#721c24;cursor:pointer;text-decoration:underline;font-size:10px;font-weight:700" onclick="App.runDiag()">Diagnostica</span>';
       }
       firestoreLoadDone=true;firestoreLoaded=true;
       updateClassLockState();render();
@@ -1723,19 +1723,101 @@ function renderChildDetail(idx){
   return html;
 }
 
+function runFirestoreDiagnostic(){
+  if(!currentUser||!db){alert('Nessuna connessione Firebase.');return;}
+  var uid=currentUser.uid;
+  var results=[];
+  var paths=[
+    {coll:'registro_presenze',doc:uid,label:'registro_presenze/'+uid},
+    {coll:'registro_presenze',doc:'rp_data_'+uid,label:'registro_presenze/rp_data_'+uid},
+    {coll:'users',doc:uid,label:'users/'+uid}
+  ];
+  var testData={_diag:true,ts:firebase.firestore.FieldValue.serverTimestamp()};
+  var idx=0;
+  
+  function showResults(){
+    var msg='DIAGNOSTICA FIREBASE\n====================\n\n';
+    for(var i=0;i<results.length;i++){
+      var r=results[i];
+      msg+=r.label+':\n';
+      msg+='  WRITE: '+(r.writeOk?'OK '+r.writeMsg:'FALLITO '+r.writeMsg)+'\n';
+      msg+='  READ:  '+(r.readOk?'OK '+r.readMsg:'FALLITO '+r.readMsg)+'\n\n';
+    }
+    msg+='\nUID: '+uid;
+    alert(msg);
+  }
+  
+  function testPath(i){
+    if(i>=paths.length){showResults();return;}
+    var p=paths[i];
+    var result={label:p.label,writeOk:false,writeMsg:'',readOk:false,readMsg:''};
+    results.push(result);
+    
+    // Try WRITE
+    db.collection(p.coll).doc(p.doc).set(testData,{merge:true})
+      .then(function(){
+        result.writeOk=true;
+        result.writeMsg='Salvato';
+        // Try READ
+        db.collection(p.coll).doc(p.doc).get()
+          .then(function(doc){
+            result.readOk=true;
+            result.readMsg=doc.exists?'Documento esiste':'Documento vuoto';
+            // Clean up test data
+            db.collection(p.coll).doc(p.doc).update({_diag:firebase.firestore.FieldValue.delete()}).catch(function(){});
+            testPath(i+1);
+          })
+          .catch(function(err){
+            result.readMsg=err.code+' - '+err.message;
+            testPath(i+1);
+          });
+      })
+      .catch(function(err){
+        result.writeMsg=err.code+' - '+err.message;
+        // Try READ anyway
+        db.collection(p.coll).doc(p.doc).get()
+          .then(function(doc){
+            result.readOk=true;
+            result.readMsg=doc.exists?'Documento esiste':'Documento vuoto';
+            testPath(i+1);
+          })
+          .catch(function(err2){
+            result.readMsg=err2.code+' - '+err2.message;
+            testPath(i+1);
+          });
+      });
+  }
+  
+  testPath(0);
+}
+
 window.App={
   login:handleLogin,
   forceSync:function(){
     if(!currentUser||!db){alert('Nessuna connessione al cloud.');return;}
     saveCurrentClassData();
     // Save current data to Firestore immediately, then reload from server
-    saveToFirestoreNow();
-    // Also reload from server after a short delay
-    setTimeout(function(){
-      firestoreLoadDone=false;
-      loadFromFirestore(currentUser.uid);
-    },2000);
+    firestoreLoadDone=false;
+    syncStatus='saving';renderSyncBar();
+    db.collection('registro_presenze').doc(currentUser.uid).set({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()})
+      .then(function(){
+        console.log('[FORCESYNC] Save OK, reloading from server...');
+        loadFromFirestore(currentUser.uid);
+      })
+      .catch(function(err){
+        console.error('[FORCESYNC] Save failed:',err.code,err.message);
+        syncStatus='error';
+        var errMsg=err.code||err.message||'Errore';
+        if(err.code==='permission-denied') errMsg='Permesso negato';
+        else if(err.code==='unavailable') errMsg='Server non disponibile';
+        var bar=document.getElementById('sync-bar');
+        if(bar){
+          bar.className='sync-bar error';
+          bar.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> '+esc(errMsg)+' <span style="margin-left:4px;color:#721c24;cursor:pointer;text-decoration:underline;font-size:10px;font-weight:700" onclick="App.forceSync()">Riprova</span> <span style="margin-left:4px;color:#721c24;cursor:pointer;text-decoration:underline;font-size:10px;font-weight:700" onclick="App.runDiag()">Diagnostica</span>';
+        }
+      });
   },
+  runDiag:function(){runFirestoreDiagnostic();},
   startEditClass:function(){editingClass=true;render();},
   finishEditClass:function(){var ci=document.getElementById('classInput');if(ci&&ci.value.trim()){var newName=ci.value.trim().toUpperCase();className=newName;if(currentClassId&&classes[currentClassId])classes[currentClassId].name=newName;}editingClass=false;saveState();render();},
   startEditSchool:function(){editingSchool=true;render();},
