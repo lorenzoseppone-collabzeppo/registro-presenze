@@ -4,7 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <title>Registro di Classe</title>
-<meta name="version" content="2025-05-27-v10-fix"/>
+<meta name="version" content="2025-05-27-v11-users-fix"/>
 <meta name="description" content="Registro di Classe per la gestione della classe"/>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231a1a2e'><path d='M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z'/></svg>"/>
 <style>
@@ -858,7 +858,7 @@ function doSaveToFirestore(){
   var classCount=Object.keys(classes).length;
   console.log('[SAVE] Saving to Firestore: '+classCount+' classes, currentClassId='+currentClassId);
   for(var cid in classes){if(classes.hasOwnProperty(cid)){console.log('[SAVE] Class: '+cid+' = '+(classes[cid].name||'?')+' (pin='+(classes[cid].pin?'SET':'none')+', children='+(classes[cid].children?classes[cid].children.length:0)+')');}}
-  db.collection('registro_presenze').doc(currentUser.uid).set(data)
+  db.collection('users').doc(currentUser.uid).set(data)
     .then(function(){
       console.log('[SAVE] Firestore save SUCCESS - '+classCount+' classes saved');
       syncStatus='synced';renderSyncBar();savePinsToLocalStorage();
@@ -921,55 +921,28 @@ function loadFromFirestore(uid){
   resetAllData();
   syncStatus='saving';renderSyncBar();
   
-  // STEP 2: Try loading from Firestore - use DEFAULT get (works offline too)
-  // If data exists on server it will fetch from server; if offline uses cache
-  db.collection('registro_presenze').doc(uid).get()
+  // STEP 2: Load from Firestore - users collection (allowed by Firebase rules)
+  db.collection('users').doc(uid).get()
     .then(function(doc){
       console.log('[LOAD] Firestore get() success, doc exists: '+doc.exists);
       if(doc.exists&&doc.data()&&doc.data().classes){
         handleFirestoreData(doc, uid, localData);
       }else{
-        // No data at registro_presenze/{uid} - try old path with rp_data_ prefix
-        console.log('[LOAD] No data at registro_presenze/'+uid+', trying old rp_data_ path...');
-        db.collection('registro_presenze').doc('rp_data_'+uid).get()
-          .then(function(oldDoc){
-            if(oldDoc.exists&&oldDoc.data()&&oldDoc.data().classes){
-              console.log('[MIGRATE] Found data at rp_data_ path! Migrating to '+uid+'...');
-              var oldData=oldDoc.data();
-              handleFirestoreData(oldDoc, uid, localData);
-              // Save to new path
-              db.collection('registro_presenze').doc(uid).set({
-                classes:oldData.classes,currentClassId:oldData.currentClassId||'',
-                schoolName:oldData.schoolName||'',updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-              }).then(function(){console.log('[MIGRATE] Migration to new path done!');}).catch(function(e){console.warn('[MIGRATE] Migration save failed:',e);});
+        // No data in users collection - try registro_presenze as fallback
+        console.log('[LOAD] No data in users, trying registro_presenze...');
+        db.collection('registro_presenze').doc(uid).get()
+          .then(function(rpDoc){
+            if(rpDoc.exists&&rpDoc.data()&&rpDoc.data().classes){
+              console.log('[LOAD] Found data in registro_presenze!');
+              handleFirestoreData(rpDoc, uid, localData);
             }else{
-              // Try even older 'users' collection
-              console.log('[LOAD] No data at rp_data_ path, trying users collection...');
-              db.collection('users').doc(uid).get()
-                .then(function(veryOldDoc){
-                  if(veryOldDoc.exists&&veryOldDoc.data()&&veryOldDoc.data().classes){
-                    console.log('[MIGRATE] Found data in users! Migrating...');
-                    var vOldData=veryOldDoc.data();
-                    handleFirestoreData(veryOldDoc, uid, localData);
-                    db.collection('registro_presenze').doc(uid).set({
-                      classes:vOldData.classes,currentClassId:vOldData.currentClassId||'',
-                      schoolName:vOldData.schoolName||'',updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-                    }).then(function(){console.log('[MIGRATE] Migration from users done!');}).catch(function(){});
-                  }else{
-                    console.log('[LOAD] No Firestore data anywhere. Using localStorage/defaults.');
-                    applyLocalOrDefaults(localData);
-                    saveToFirestoreNow();
-                  }
-                })
-                .catch(function(){
-                  console.warn('[LOAD] users collection failed. Using localStorage/defaults.');
-                  applyLocalOrDefaults(localData);
-                  saveToFirestoreNow();
-                });
+              console.log('[LOAD] No Firestore data. Using localStorage/defaults.');
+              applyLocalOrDefaults(localData);
+              saveToFirestoreNow();
             }
           })
           .catch(function(){
-            console.warn('[LOAD] rp_data_ path failed. Using localStorage/defaults.');
+            console.warn('[LOAD] registro_presenze failed. Using localStorage/defaults.');
             applyLocalOrDefaults(localData);
             saveToFirestoreNow();
           });
@@ -1173,7 +1146,7 @@ function handleLogin(){
       // Prova a salvare su Firestore (fire and forget - non bloccare il logout)
       try{
         if(db&&uid){
-          db.collection('registro_presenze').doc(uid).set({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()}).catch(function(err){console.error('[LOGOUT] Firestore save failed:',err);});
+          db.collection('users').doc(uid).set({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()}).catch(function(err){console.error('[LOGOUT] Firestore save failed:',err);});
         }
       }catch(e){console.error('[LOGOUT] Firestore error:',e);}
       // Fai logout SUBITO - non aspettare Firestore
@@ -1282,7 +1255,7 @@ function render(){
     html+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 8px;flex-wrap:wrap">';
     html+='<button onclick="App.runDiag()" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;border:1.5px solid #dc3545;background:rgba(220,53,69,0.08);color:#dc3545;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Diagnostica</button>';
     html+='<button onclick="App.fixRules()" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;border:1.5px solid #28a745;background:rgba(40,167,69,0.08);color:#28a745;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg> Ripara Firebase</button>';
-    html+='<span style="font-size:9px;color:#aaa;margin-left:auto">v10-fix</span>';
+    html+='<span style="font-size:9px;color:#aaa;margin-left:auto">v11-fix</span>';
     html+='</div>';
   }
 
@@ -1736,9 +1709,9 @@ function runFirestoreDiagnostic(){
   var uid=currentUser.uid;
   var results=[];
   var paths=[
+    {coll:'users',doc:uid,label:'users/'+uid},
     {coll:'registro_presenze',doc:uid,label:'registro_presenze/'+uid},
-    {coll:'registro_presenze',doc:'rp_data_'+uid,label:'registro_presenze/rp_data_'+uid},
-    {coll:'users',doc:uid,label:'users/'+uid}
+    {coll:'registro_presenze',doc:'rp_data_'+uid,label:'registro_presenze/rp_data_'+uid}
   ];
   var testData={_diag:true,ts:firebase.firestore.FieldValue.serverTimestamp()};
   var idx=0;
@@ -1862,7 +1835,7 @@ window.App={
     // Save current data to Firestore immediately, then reload from server
     firestoreLoadDone=false;
     syncStatus='saving';renderSyncBar();
-    db.collection('registro_presenze').doc(currentUser.uid).set({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()})
+    db.collection('users').doc(currentUser.uid).set({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,updatedAt:firebase.firestore.FieldValue.serverTimestamp()})
       .then(function(){
         console.log('[FORCESYNC] Save OK, reloading from server...');
         loadFromFirestore(currentUser.uid);
