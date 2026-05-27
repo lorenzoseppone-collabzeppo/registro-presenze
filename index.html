@@ -4,7 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <title>Registro di Classe</title>
-<meta name="version" content="2025-05-27-v9-diag"/>
+<meta name="version" content="2025-05-27-v10-fix"/>
 <meta name="description" content="Registro di Classe per la gestione della classe"/>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231a1a2e'><path d='M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z'/></svg>"/>
 <style>
@@ -1277,6 +1277,14 @@ function render(){
   else{html+='<div class="auth-bar info"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>Effettua il login con Google per salvare i dati nel cloud</span></div>';}
 
   html+='<div id="sync-bar" class="sync-bar" style="display:none"></div>';
+  // Diagnostica + versione - sempre visibile se loggato
+  if(currentUser){
+    html+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 8px;flex-wrap:wrap">';
+    html+='<button onclick="App.runDiag()" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;border:1.5px solid #dc3545;background:rgba(220,53,69,0.08);color:#dc3545;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Diagnostica</button>';
+    html+='<button onclick="App.fixRules()" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;border:1.5px solid #28a745;background:rgba(40,167,69,0.08);color:#28a745;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg> Ripara Firebase</button>';
+    html+='<span style="font-size:9px;color:#aaa;margin-left:auto">v10-fix</span>';
+    html+='</div>';
+  }
 
   // Class tabs
   html+='<div class="class-tabs">';
@@ -1791,6 +1799,61 @@ function runFirestoreDiagnostic(){
   testPath(0);
 }
 
+function fixFirebaseRules(){
+  if(!currentUser){alert('Effettua prima il login.');return;}
+  var confirmed=confirm('Vuoi aggiornare le regole di sicurezza Firebase per permettere la sincronizzazione?\n\nQuesto permetterà all\'app di salvare e leggere i dati nel cloud.');
+  if(!confirmed) return;
+  
+  currentUser.getIdToken().then(function(idToken){
+    console.log('[FIX] Got ID token, updating Firestore rules...');
+    
+    // The new rules that allow authenticated users to read/write their own data
+    var rulesSource = {
+      source: {
+        files: [{
+          name: 'firestore.rules',
+          content: "rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    // Allow authenticated users to read/write their own data\n    match /registro_presenze/{userId} {\n      allow read, write: if request.auth != null && request.auth.uid == userId;\n    }\n    // Also allow rp_data_ prefixed docs for migration compatibility\n    match /registro_presenze/{docId} {\n      allow read, write: if request.auth != null && docId == request.auth.uid;\n    }\n    // Allow users collection for migration\n    match /users/{userId} {\n      allow read: if request.auth != null && request.auth.uid == userId;\n    }\n  }\n}"
+        }]
+      }
+    };
+    
+    // Try to update rules via Firebase Rules API
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', 'https://firebaserules.googleapis.com/v1/projects/presenze-pre-post/rulesets', true);
+    xhr.setRequestHeader('Authorization', 'Bearer ' + idToken);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.onload = function() {
+      console.log('[FIX] Rules API response:', xhr.status, xhr.responseText);
+      if(xhr.status === 200) {
+        var resp = JSON.parse(xhr.responseText);
+        var rulesetName = resp.name;
+        // Now release the ruleset
+        var releaseXhr = new XMLHttpRequest();
+        releaseXhr.open('PATCH', 'https://firebaserules.googleapis.com/v1/projects/presenze-pre-post/releases/cloud.firestore', true);
+        releaseXhr.setRequestHeader('Authorization', 'Bearer ' + idToken);
+        releaseXhr.setRequestHeader('Content-Type', 'application/json');
+        releaseXhr.onload = function() {
+          if(releaseXhr.status === 200) {
+            alert('Regole Firebase aggiornate con successo!\n\nOra prova a sincronizzare di nuovo.');
+            App.forceSync();
+          } else {
+            alert('Errore nel rilascio delle regole: ' + releaseXhr.status + '\n' + releaseXhr.responseText.substring(0, 300));
+          }
+        };
+        releaseXhr.send(JSON.stringify({rulesetName: rulesetName}));
+      } else {
+        alert('Impossibile aggiornare le regole Firebase automaticamente.\n\nStato: ' + xhr.status + '\n\nDevi aggiornare le regole manualmente:\n1. Vai su console.firebase.google.com\n2. Seleziona il progetto "presenze-pre-post"\n3. Vai su Firestore Database > Regole\n4. Sostituisci con:\n\nrules_version = \'2\';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /registro_presenze/{userId} {\n      allow read, write: if request.auth != null && request.auth.uid == userId;\n    }\n  }\n}\n\n5. Clicca "Pubblica"');
+      }
+    };
+    xhr.onerror = function() {
+      alert('Errore di connessione. Riprova.');
+    };
+    xhr.send(JSON.stringify(rulesSource));
+  }).catch(function(err){
+    alert('Errore nel ottenere il token: ' + err.message);
+  });
+}
+
 window.App={
   login:handleLogin,
   forceSync:function(){
@@ -1818,6 +1881,7 @@ window.App={
       });
   },
   runDiag:function(){runFirestoreDiagnostic();},
+  fixRules:function(){fixFirebaseRules();},
   startEditClass:function(){editingClass=true;render();},
   finishEditClass:function(){var ci=document.getElementById('classInput');if(ci&&ci.value.trim()){var newName=ci.value.trim().toUpperCase();className=newName;if(currentClassId&&classes[currentClassId])classes[currentClassId].name=newName;}editingClass=false;saveState();render();},
   startEditSchool:function(){editingSchool=true;render();},
