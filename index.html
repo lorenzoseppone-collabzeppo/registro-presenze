@@ -861,24 +861,19 @@ function doSaveToFirestore(){
   db.collection('registro_presenze').doc('rp_data_'+currentUser.uid).set(data)
     .then(function(){
       console.log('[SAVE] Firestore save SUCCESS - '+classCount+' classes saved');
-      // VERIFICATION: read back from server to confirm save
-      db.collection('registro_presenze').doc('rp_data_'+currentUser.uid).get({source:'server'}).then(function(verifyDoc){
-        if(verifyDoc.exists){
-          var vd=verifyDoc.data();
-          var vCount=vd.classes?Object.keys(vd.classes).length:0;
-          console.log('[VERIFY] Server has '+vCount+' classes after save (expected '+classCount+')');
-          if(vCount!==classCount){
-            console.error('[VERIFY] MISMATCH! Server has '+vCount+' classes but we saved '+classCount);
-          }
-        }
-      }).catch(function(){});
       syncStatus='synced';renderSyncBar();savePinsToLocalStorage();
       setTimeout(function(){if(syncStatus==='synced'){syncStatus='idle';renderSyncBar();}},3000);
     })
     .catch(function(err){
-      console.error('[SAVE] Firestore save FAILED:',err);
+      console.error('[SAVE] Firestore save FAILED:',err.code,err.message);
       syncStatus='error';renderSyncBar();
-      alert('Errore di salvataggio nel cloud!\nI dati sono salvati localmente.\nErrore: '+err.message+'\n\nClasse count: '+classCount);
+      // Show error details in sync bar
+      var bar=document.getElementById('sync-bar');
+      if(bar){
+        var errMsg=err.code||err.message||'Errore';
+        if(err.code==='permission-denied') errMsg='Permesso negato Firebase';
+        bar.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Errore: '+esc(errMsg)+' <span style="margin-left:6px;cursor:pointer;text-decoration:underline;font-size:10px;font-weight:700" onclick="App.forceSync()">Riprova</span>';
+      }
     });
 }
 
@@ -914,7 +909,6 @@ function loadFromFirestore(uid){
   if(firestoreLoadDone&&currentUser&&currentUser.uid===uid) return;
   
   // STEP 1: Load from localStorage FIRST as immediate backup
-  // This prevents data loss if Firestore cache returns stale data
   var localData=null;
   try{
     var ld=JSON.parse(localStorage.getItem('rp_data_'+uid));
@@ -924,101 +918,80 @@ function loadFromFirestore(uid){
   resetAllData();
   syncStatus='saving';renderSyncBar();
   
-  // STEP 2: Always fetch from SERVER first to get the freshest data
-  // This is critical for multi-device sync - cache can be stale
-  db.collection('registro_presenze').doc('rp_data_'+uid).get({source:'server'})
+  // STEP 2: Try loading from Firestore - use DEFAULT get (works offline too)
+  // If data exists on server it will fetch from server; if offline uses cache
+  db.collection('registro_presenze').doc('rp_data_'+uid).get()
     .then(function(doc){
-      console.log('[LOAD] Got data from SERVER (registro_presenze), doc exists: '+doc.exists);
+      console.log('[LOAD] Firestore get() success, doc exists: '+doc.exists);
       if(doc.exists&&doc.data()&&doc.data().classes){
         handleFirestoreData(doc, uid, localData);
       }else{
-        // No data in registro_presenze - try migrating from old 'users' collection
-        console.log('[MIGRATE] No data in registro_presenze, checking old users collection...');
-        db.collection('users').doc(uid).get({source:'server'})
+        // No data in registro_presenze - try old 'users' collection
+        console.log('[LOAD] No data in registro_presenze, trying users collection...');
+        db.collection('users').doc(uid).get()
           .then(function(oldDoc){
             if(oldDoc.exists&&oldDoc.data()&&oldDoc.data().classes){
-              console.log('[MIGRATE] Found data in old users collection! Migrating...');
-              // Save old data to new collection
+              console.log('[MIGRATE] Found data in users! Migrating to registro_presenze...');
               var oldData=oldDoc.data();
+              handleFirestoreData(oldDoc, uid, localData);
+              // Save to new collection
               db.collection('registro_presenze').doc('rp_data_'+uid).set({
-                classes:oldData.classes,
-                currentClassId:oldData.currentClassId||'',
-                schoolName:oldData.schoolName||'',
-                updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-              }).then(function(){
-                console.log('[MIGRATE] Migration SUCCESS! Data copied to registro_presenze');
-                handleFirestoreData(oldDoc, uid, localData);
-              }).catch(function(migErr){
-                console.error('[MIGRATE] Migration failed:',migErr);
-                // Still use the old data
-                handleFirestoreData(oldDoc, uid, localData);
-              });
+                classes:oldData.classes,currentClassId:oldData.currentClassId||'',
+                schoolName:oldData.schoolName||'',updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+              }).then(function(){console.log('[MIGRATE] Migration done!');}).catch(function(){});
             }else{
-              // No data in either collection
-              console.log('[LOAD] No data in Firestore. Using localStorage if available.');
-              if(localData){
-                classes=localData.classes;
-                currentClassId=localData.currentClassId||'';
-                if(localData.schoolName) schoolName=localData.schoolName;
-                if(localData.currentDate){try{currentDate=new Date(localData.currentDate+'T12:00:00');}catch(e3){}}
-                restorePinsFromLocalStorage();
-                if(currentClassId&&classes[currentClassId]){loadClassData(currentClassId);}
-                ensureDefaultClass();
-                restorePinsFromLocalStorage();
-              }else{
-                ensureDefaultClass();
-              }
-              // Save whatever we have to the new collection
+              // No data anywhere - use localStorage or defaults
+              console.log('[LOAD] No Firestore data. Using localStorage/defaults.');
+              applyLocalOrDefaults(localData);
               saveToFirestoreNow();
-              firestoreLoadDone=true;firestoreLoaded=true;syncStatus='synced';updateClassLockState();render();
             }
           })
-          .catch(function(oldErr){
-            console.warn('[MIGRATE] Could not check old collection:',oldErr);
-            if(localData){
-              classes=localData.classes;
-              currentClassId=localData.currentClassId||'';
-              if(localData.schoolName) schoolName=localData.schoolName;
-              if(localData.currentDate){try{currentDate=new Date(localData.currentDate+'T12:00:00');}catch(e3){}}
-              restorePinsFromLocalStorage();
-              if(currentClassId&&classes[currentClassId]){loadClassData(currentClassId);}
-              ensureDefaultClass();
-              restorePinsFromLocalStorage();
-            }else{
-              ensureDefaultClass();
-            }
+          .catch(function(){
+            console.warn('[LOAD] users collection failed too. Using localStorage/defaults.');
+            applyLocalOrDefaults(localData);
             saveToFirestoreNow();
-            firestoreLoadDone=true;firestoreLoaded=true;syncStatus='synced';updateClassLockState();render();
           });
       }
     })
-    .catch(function(serverErr){
-      // If server fetch fails (offline, etc.), try cache as fallback
-      console.warn('[LOAD] Server fetch failed, trying cache:', serverErr.message||serverErr);
-      db.collection('registro_presenze').doc('rp_data_'+uid).get({source:'cache'})
-        .then(function(doc){
-          console.log('[LOAD] Got data from CACHE as fallback, doc exists: '+doc.exists);
-          handleFirestoreData(doc, uid, localData);
-        })
-        .catch(function(cacheErr){
-          console.error('[LOAD] Both server and cache fetch failed:', cacheErr);
-          // Last resort: use localStorage data
-          if(localData){
-            classes=localData.classes;
-            currentClassId=localData.currentClassId||'';
-            if(localData.schoolName) schoolName=localData.schoolName;
-            if(localData.currentDate){try{currentDate=new Date(localData.currentDate+'T12:00:00');}catch(e3){}}
-            restorePinsFromLocalStorage();
-            if(currentClassId&&classes[currentClassId]){loadClassData(currentClassId);}
-            ensureDefaultClass();
-            restorePinsFromLocalStorage();
-          }else{
-            ensureDefaultClass();
-          }
-          firestoreLoadDone=true;firestoreLoaded=true;syncStatus='error';
-          updateClassLockState();render();
-        });
+    .catch(function(err){
+      console.error('[LOAD] Firestore get() failed:', err.code, err.message);
+      // Show the real error in sync bar
+      var errMsg=err.code||err.message||'Errore sconosciuto';
+      if(err.code==='permission-denied'){errMsg='Permesso negato - controlla regole Firebase';}
+      else if(err.code==='unavailable'){errMsg='Server non disponibile';}
+      applyLocalOrDefaults(localData);
+      syncStatus='error';
+      // Show error with details
+      var bar=document.getElementById('sync-bar');
+      if(bar){
+        bar.style.display='flex';bar.className='sync-bar error';
+        bar.innerHTML='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> '+esc(errMsg)+' <span style="margin-left:6px;color:#721c24;cursor:pointer;text-decoration:underline;font-size:10px;font-weight:700" onclick="App.forceSync()">Riprova</span>';
+      }
+      firestoreLoadDone=true;firestoreLoaded=true;
+      updateClassLockState();render();
     });
+}
+
+function applyLocalOrDefaults(localData){
+  if(localData){
+    classes=localData.classes;
+    currentClassId=localData.currentClassId||'';
+    if(localData.schoolName) schoolName=localData.schoolName;
+    if(localData.currentDate){try{currentDate=new Date(localData.currentDate+'T12:00:00');}catch(e3){}}
+    restorePinsFromLocalStorage();
+    if(currentClassId&&classes[currentClassId]){loadClassData(currentClassId);}
+    ensureDefaultClass();
+    restorePinsFromLocalStorage();
+  }else{
+    ensureDefaultClass();
+  }
+  var key=getCurrentDateKey();var dd=dateData[key];
+  if(dd){presenze=dd.presenze||{};pre=dd.pre||{};post=dd.post||{};}
+  firestoreLoadDone=true;firestoreLoaded=true;syncStatus='synced';
+  updateClassLockState();
+  try{localStorage.setItem(getStorageKey(),JSON.stringify({classes:JSON.parse(JSON.stringify(classes)),currentClassId:currentClassId,schoolName:schoolName,currentDate:dateToInput(currentDate)}));}catch(e){}
+  savePinsToLocalStorage();
+  render();
 }
 
 function handleFirestoreData(doc, uid, localData){
